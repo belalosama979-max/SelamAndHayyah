@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate, useLocation, Navigate, useParams } from 'react-router-dom';
 import { 
   getRooms, saveRoom, archiveRoom, deleteRoom,
   getPlayers, savePlayer,
@@ -22,6 +23,10 @@ const PlusIcon = () => <span>➕</span>;
 const TrophyIcon = () => <span>🏆</span>;
 
 export default function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const currentPath = location.pathname;
+  
   // المظهر (Light/Dark Mode)
   const [theme, setTheme] = useState(localStorage.getItem('aqsa_theme') || 'dark');
 
@@ -52,23 +57,41 @@ export default function App() {
     const pCode = params.get('parentCode');
     if (pCode) {
       setInitialParentCode(pCode);
-      setCurrentScreen('parent-portal');
-    } else {
-      // Restore room state if available
-      const savedRoomId = sessionStorage.getItem('aqsa_selectedRoomId');
-      if (savedRoomId) {
-        const allRooms = getRooms();
-        const room = allRooms.find(r => r.id === savedRoomId);
-        if (room) {
-          setActiveRoom(room);
-          setActivePlayers(getPlayers(savedRoomId));
-          setActiveLogs(getLogs(savedRoomId));
-        } else {
-          sessionStorage.removeItem('aqsa_selectedRoomId');
-        }
-      }
+      navigate('/parent-portal');
     }
   }, []);
+
+  // المزامنة مع مسار الرابط (لإعادة تحميل الغرفة عند تحديث الصفحة أو التراجع)
+  useEffect(() => {
+    if (currentPath.startsWith('/game/')) {
+      const roomId = currentPath.split('/')[2];
+      if (roomId && roomId !== selectedRoomId) {
+        setSelectedRoomId(roomId);
+        const allRooms = getRooms();
+        const room = allRooms.find(r => r.id === roomId);
+        if (room) {
+          setActiveRoom(room);
+          const playersList = getPlayers(roomId);
+          setActivePlayers(playersList);
+          setActiveLogs(getLogs(roomId));
+          
+          if (!activePlayer) {
+            const saved = sessionStorage.getItem('aqsa_activePlayer');
+            const parsed = saved ? JSON.parse(saved) : null;
+            setActivePlayer(parsed || playersList[0] || null);
+          }
+        } else {
+          // الغرفة غير موجودة، ارجع للرئيسية
+          navigate('/dashboard');
+        }
+      }
+    } else if (currentPath === '/dashboard') {
+      setSelectedRoomId('');
+      setActiveRoom(null);
+      setActivePlayers([]);
+      setActiveLogs([]);
+    }
+  }, [currentPath]);
 
   useEffect(() => {
     localStorage.setItem('aqsa_theme', theme);
@@ -80,11 +103,11 @@ export default function App() {
   }, [theme]);
 
   // حالات التنقل والبيانات
-  const [currentScreen, setCurrentScreen] = useState(sessionStorage.getItem('aqsa_currentScreen') || 'login'); // 'login' | 'dashboard' | 'game' | 'admin' | 'parent-portal'
+  // بيانات التطبيق الرئيسية
   const [rooms, setRooms] = useState([]);
   const [cards, setCards] = useState([]);
   const [boardEvents, setBoardEvents] = useState([]);
-  
+
   // الغرفة المحددة للعب
   const [selectedRoomId, setSelectedRoomId] = useState(sessionStorage.getItem('aqsa_selectedRoomId') || '');
   const [activeRoom, setActiveRoom] = useState(null);
@@ -99,14 +122,13 @@ export default function App() {
 
   // حفظ الحالة في الجلسة عند كل تغيير
   useEffect(() => {
-    sessionStorage.setItem('aqsa_currentScreen', currentScreen);
     sessionStorage.setItem('aqsa_selectedRoomId', selectedRoomId);
     if (activePlayer) {
       sessionStorage.setItem('aqsa_activePlayer', JSON.stringify(activePlayer));
     } else {
       sessionStorage.removeItem('aqsa_activePlayer');
     }
-  }, [currentScreen, selectedRoomId, activePlayer]);
+  }, [selectedRoomId, activePlayer]);
 
   // حالات الرسوم المتحركة
   const [animatingPlayerId, setAnimatingPlayerId] = useState(null);
@@ -166,7 +188,7 @@ export default function App() {
     
     // اختيار اللاعب الأول تلقائياً لتسهيل اللعب
     setActivePlayer(playersList[0] || null);
-    setCurrentScreen('game');
+    navigate(`/game/${roomId}`);
   };
 
   // الرجوع للرئيسية
@@ -177,7 +199,7 @@ export default function App() {
     setActivePlayer(null);
     setActiveLogs([]);
     setRooms(getRooms());
-    setCurrentScreen('dashboard');
+    navigate('/dashboard');
   };
 
   // تطبيق بطاقة حركة على طالب
@@ -301,14 +323,18 @@ export default function App() {
     }} />;
   }
 
-  if (currentScreen === 'login') {
+  // توجيهات Header
+  const navClass = (path) => `btn ${currentPath.startsWith(path) ? 'btn-primary' : 'btn-secondary'}`;
+
+  // لا نعرض الـ Header في صفحة الدخول
+  if (currentPath === '/login' || currentPath === '/') {
     return (
       <LoginGate 
         onAdminLogin={() => {
           sessionStorage.setItem('aqsa_isAdmin', 'true');
-          setCurrentScreen('dashboard');
+          navigate('/dashboard');
         }} 
-        onStudentLogin={() => setCurrentScreen('parent-portal')} 
+        onStudentLogin={() => navigate('/parent-portal')} 
       />
     );
   }
@@ -354,38 +380,38 @@ export default function App() {
             <>
               <button 
                 onClick={handleBackToDashboard} 
-                className={`btn ${currentScreen === 'dashboard' ? 'btn-primary' : 'btn-secondary'}`}
+                className={navClass('/dashboard')}
               >
                 <HomeIcon /> الرئيسية (لوحة الغرف)
               </button>
               
               <button 
-                onClick={() => setCurrentScreen('shop')} 
-                className={`btn ${currentScreen === 'shop' ? 'btn-primary' : 'btn-secondary'}`}
-                style={{ fontWeight: 700, backgroundColor: currentScreen === 'shop' ? 'var(--primary)' : 'rgba(16, 185, 129, 0.1)', color: currentScreen === 'shop' ? '#fff' : '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}
+                onClick={() => navigate('/shop')} 
+                className={navClass('/shop')}
+                style={{ fontWeight: 700, backgroundColor: currentPath === '/shop' ? 'var(--primary)' : 'rgba(16, 185, 129, 0.1)', color: currentPath === '/shop' ? '#fff' : '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}
               >
                 🎁 متجر الجوائز
               </button>
 
               <button 
-                onClick={() => setCurrentScreen('leaderboard')} 
-                className={`btn ${currentScreen === 'leaderboard' ? 'btn-primary' : 'btn-secondary'}`}
-                style={{ fontWeight: 700, backgroundColor: currentScreen === 'leaderboard' ? 'var(--primary)' : 'rgba(245, 158, 11, 0.1)', color: currentScreen === 'leaderboard' ? '#fff' : '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)' }}
+                onClick={() => navigate('/leaderboard')} 
+                className={navClass('/leaderboard')}
+                style={{ fontWeight: 700, backgroundColor: currentPath === '/leaderboard' ? 'var(--primary)' : 'rgba(245, 158, 11, 0.1)', color: currentPath === '/leaderboard' ? '#fff' : '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)' }}
               >
                 🏆 لوحة الأبطال
               </button>
 
               <button 
-                onClick={() => setCurrentScreen('parent-portal')} 
-                className={`btn ${currentScreen === 'parent-portal' ? 'btn-primary' : 'btn-secondary'}`}
-                style={{ fontWeight: 700, backgroundColor: currentScreen === 'parent-portal' ? 'var(--primary)' : 'rgba(59, 130, 246, 0.1)', color: currentScreen === 'parent-portal' ? '#fff' : '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)' }}
+                onClick={() => navigate('/parent-portal')} 
+                className={navClass('/parent-portal')}
+                style={{ fontWeight: 700, backgroundColor: currentPath === '/parent-portal' ? 'var(--primary)' : 'rgba(59, 130, 246, 0.1)', color: currentPath === '/parent-portal' ? '#fff' : '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)' }}
               >
                 👨‍👩‍👦 بوابة أولياء الأمور
               </button>
 
               <button 
-                onClick={() => setCurrentScreen('admin')} 
-                className={`btn ${currentScreen === 'admin' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => navigate('/admin')} 
+                className={navClass('/admin')}
               >
                 <SettingsIcon /> لوحة إدارة النظام
               </button>
@@ -395,8 +421,7 @@ export default function App() {
           <button 
             onClick={() => {
               sessionStorage.removeItem('aqsa_isAdmin');
-              sessionStorage.removeItem('aqsa_currentScreen');
-              setCurrentScreen('login');
+              navigate('/login');
             }} 
             className="btn btn-secondary"
             style={{ fontWeight: 700, color: '#ef4444' }}
@@ -408,9 +433,9 @@ export default function App() {
 
       {/* ================= المحتوى الرئيسي للموقع ================= */}
       <main style={{ flex: 1, padding: '2rem', maxWidth: '1440px', width: '100%', margin: '0 auto' }}>
-        
+        <Routes>
         {/* 1. الشاشة الرئيسية (لوحة تحكم المعلم واختيار الغرفة) */}
-      {currentScreen === 'dashboard' && (
+        <Route path="/dashboard" element={
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{
               display: 'flex',
@@ -469,10 +494,10 @@ export default function App() {
               )}
             </div>
           </div>
-        )}
+        } />
 
-        {/* 2. شاشة اللعب والتحكم الحية */}
-        {currentScreen === 'game' && activeRoom && (
+        {/* 2. شاشة اللعب الرئيسية لغرفة معينة */}
+        <Route path="/game/:roomId" element={
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             {/* رأس لوحة اللعب */}
             <div className="glass-panel" style={{
@@ -600,10 +625,13 @@ export default function App() {
               </div>
             </div>
           </div>
-        )}
+        } />
+        
+        {/* توجيه افتراضي */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
 
-        {/* 3. شاشة لوحة الإدارة الموحدة والكاملة */}
-        {currentScreen === 'admin' && (
+        {/* 3. لوحة تحكم المعلم (الإدارة الشاملة) */}
+        <Route path="/admin" element={
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{
               backgroundColor: 'var(--bg-secondary)',
@@ -617,20 +645,21 @@ export default function App() {
               </p>
             </div>
             
-            <AdminPanel onDataChange={handleDataChange} />
+            <AdminPanel onDataChange={handleDataChange} onExit={() => navigate('/dashboard')} />
           </div>
-        )}
+        } />
 
-        {/* 4. شاشة متجر الجوائز */}
-        {currentScreen === 'shop' && (
-          <ShopView onBack={handleBackToDashboard} />
-        )}
+        {/* 4. متجر الجوائز */}
+        <Route path="/shop" element={
+          <ShopView onBack={handleBackToDashboard}          />
+        } />
 
-        {/* 5. شاشة لوحة الأبطال */}
-        {currentScreen === 'leaderboard' && (
+        {/* 5. لوحة الأبطال */}
+        <Route path="/leaderboard" element={
           <LeaderboardView onBack={handleBackToDashboard} />
-        )}
+        } />
 
+        </Routes>
       </main>
 
       {/* ================= النوافذ المنبثقة (Modals) ================= */}
