@@ -938,7 +938,7 @@ export default function AdminPanel({ onDataChange }) {
               <div>
                 <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.5rem' }}>☁️ الترحيل إلى السحابة (Firebase)</h4>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>اضغط هذا الزر مرة واحدة لرفع بيانات حاسوبك إلى السحابة لتظهر على موقع Vercel.</p>
-                <button onClick={() => { if(window.confirm('هل أنت متأكد من رفع البيانات الحالية للسحابة؟ سيستبدل هذا النسخة السحابية الحالية.')) migrateDataToFirebase() }} className="btn btn-primary" style={{ gap: '0.5rem', marginBottom: '1rem' }}>
+                <button onClick={() => migrateDataToFirebase()} className="btn btn-primary" style={{ gap: '0.5rem', marginBottom: '1rem' }}>
                   🚀 رفع البيانات للسحابة
                 </button>
                 <hr style={{ border: 'none', borderBottom: '1px solid var(--border-color)', my: '1rem' }} />

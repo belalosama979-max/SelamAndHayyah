@@ -13,6 +13,7 @@ import Modal from './components/Modal';
 import ShopView from './components/ShopView';
 import LeaderboardView from './components/LeaderboardView';
 import ParentPortal from './components/ParentPortal';
+import LoginGate from './components/LoginGate';
 
 // أيقونات مبسطة لتفادي أخطاء الاستيراد
 const HomeIcon = () => <span>🏠</span>;
@@ -32,6 +33,15 @@ export default function App() {
     initDatabase();
     import('./db/database').then(db => {
       db.startFirebaseSync();
+      // الترحيل التلقائي لمرة واحدة فقط إذا كان على اللوكال هوست
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        setTimeout(() => {
+          if (!localStorage.getItem('cloud_migrated')) {
+            console.log("Auto-migrating data to Firebase...");
+            db.migrateDataToFirebase();
+          }
+        }, 3000);
+      }
     });
     setRooms(getRooms());
     setCards(getCards());
@@ -70,7 +80,7 @@ export default function App() {
   }, [theme]);
 
   // حالات التنقل والبيانات
-  const [currentScreen, setCurrentScreen] = useState(sessionStorage.getItem('aqsa_currentScreen') || 'dashboard'); // 'dashboard' | 'game' | 'admin' | 'parent-portal'
+  const [currentScreen, setCurrentScreen] = useState(sessionStorage.getItem('aqsa_currentScreen') || 'login'); // 'login' | 'dashboard' | 'game' | 'admin' | 'parent-portal'
   const [rooms, setRooms] = useState([]);
   const [cards, setCards] = useState([]);
   const [boardEvents, setBoardEvents] = useState([]);
@@ -291,6 +301,18 @@ export default function App() {
     }} />;
   }
 
+  if (currentScreen === 'login') {
+    return (
+      <LoginGate 
+        onAdminLogin={() => {
+          sessionStorage.setItem('aqsa_isAdmin', 'true');
+          setCurrentScreen('dashboard');
+        }} 
+        onStudentLogin={() => setCurrentScreen('parent-portal')} 
+      />
+    );
+  }
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       
@@ -328,42 +350,58 @@ export default function App() {
             {theme === 'dark' ? '💡 المظهر المضيء' : '🌙 المظهر الداكن'}
           </button>
 
-          <button 
-            onClick={handleBackToDashboard} 
-            className={`btn ${currentScreen === 'dashboard' ? 'btn-primary' : 'btn-secondary'}`}
-          >
-            <HomeIcon /> الرئيسية (لوحة الغرف)
-          </button>
+          {sessionStorage.getItem('aqsa_isAdmin') === 'true' && (
+            <>
+              <button 
+                onClick={handleBackToDashboard} 
+                className={`btn ${currentScreen === 'dashboard' ? 'btn-primary' : 'btn-secondary'}`}
+              >
+                <HomeIcon /> الرئيسية (لوحة الغرف)
+              </button>
+              
+              <button 
+                onClick={() => setCurrentScreen('shop')} 
+                className={`btn ${currentScreen === 'shop' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ fontWeight: 700, backgroundColor: currentScreen === 'shop' ? 'var(--primary)' : 'rgba(16, 185, 129, 0.1)', color: currentScreen === 'shop' ? '#fff' : '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}
+              >
+                🎁 متجر الجوائز
+              </button>
+
+              <button 
+                onClick={() => setCurrentScreen('leaderboard')} 
+                className={`btn ${currentScreen === 'leaderboard' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ fontWeight: 700, backgroundColor: currentScreen === 'leaderboard' ? 'var(--primary)' : 'rgba(245, 158, 11, 0.1)', color: currentScreen === 'leaderboard' ? '#fff' : '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)' }}
+              >
+                🏆 لوحة الأبطال
+              </button>
+
+              <button 
+                onClick={() => setCurrentScreen('parent-portal')} 
+                className={`btn ${currentScreen === 'parent-portal' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ fontWeight: 700, backgroundColor: currentScreen === 'parent-portal' ? 'var(--primary)' : 'rgba(59, 130, 246, 0.1)', color: currentScreen === 'parent-portal' ? '#fff' : '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)' }}
+              >
+                👨‍👩‍👦 بوابة أولياء الأمور
+              </button>
+
+              <button 
+                onClick={() => setCurrentScreen('admin')} 
+                className={`btn ${currentScreen === 'admin' ? 'btn-primary' : 'btn-secondary'}`}
+              >
+                <SettingsIcon /> لوحة إدارة النظام
+              </button>
+            </>
+          )}
           
           <button 
-            onClick={() => setCurrentScreen('shop')} 
-            className={`btn ${currentScreen === 'shop' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ fontWeight: 700, backgroundColor: currentScreen === 'shop' ? 'var(--primary)' : 'rgba(16, 185, 129, 0.1)', color: currentScreen === 'shop' ? '#fff' : '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}
+            onClick={() => {
+              sessionStorage.removeItem('aqsa_isAdmin');
+              sessionStorage.removeItem('aqsa_currentScreen');
+              setCurrentScreen('login');
+            }} 
+            className="btn btn-secondary"
+            style={{ fontWeight: 700, color: '#ef4444' }}
           >
-            🎁 متجر الجوائز
-          </button>
-
-          <button 
-            onClick={() => setCurrentScreen('leaderboard')} 
-            className={`btn ${currentScreen === 'leaderboard' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ fontWeight: 700, backgroundColor: currentScreen === 'leaderboard' ? 'var(--primary)' : 'rgba(245, 158, 11, 0.1)', color: currentScreen === 'leaderboard' ? '#fff' : '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)' }}
-          >
-            🏆 لوحة الأبطال
-          </button>
-
-          <button 
-            onClick={() => setCurrentScreen('parent-portal')} 
-            className={`btn ${currentScreen === 'parent-portal' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ fontWeight: 700, backgroundColor: currentScreen === 'parent-portal' ? 'var(--primary)' : 'rgba(59, 130, 246, 0.1)', color: currentScreen === 'parent-portal' ? '#fff' : '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)' }}
-          >
-            👨‍👩‍👦 بوابة أولياء الأمور
-          </button>
-
-          <button 
-            onClick={() => setCurrentScreen('admin')} 
-            className={`btn ${currentScreen === 'admin' ? 'btn-primary' : 'btn-secondary'}`}
-          >
-            <SettingsIcon /> لوحة إدارة النظام
+            تسجيل خروج
           </button>
         </div>
       </header>
@@ -371,8 +409,8 @@ export default function App() {
       {/* ================= المحتوى الرئيسي للموقع ================= */}
       <main style={{ flex: 1, padding: '2rem', maxWidth: '1440px', width: '100%', margin: '0 auto' }}>
         
-        {/* 1. شاشة لوحة الغرف الرئيسية */}
-        {currentScreen === 'dashboard' && (
+        {/* 1. الشاشة الرئيسية (لوحة تحكم المعلم واختيار الغرفة) */}
+      {currentScreen === 'dashboard' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{
               display: 'flex',

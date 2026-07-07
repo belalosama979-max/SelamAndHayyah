@@ -16,6 +16,17 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// المفاتيح المستخدمة في LocalStorage
+const KEYS = {
+  ROOMS: 'aqsa_game_rooms',
+  PLAYERS: 'aqsa_game_players',
+  CARDS: 'aqsa_game_cards',
+  EVENTS: 'aqsa_game_board_events',
+  LOGS: 'aqsa_game_action_logs',
+  REWARDS: 'aqsa_game_rewards',
+  PRIZE_REQUESTS: 'aqsa_game_prize_requests'
+};
+
 let syncStarted = false;
 
 const setLocalItem = (key, value) => {
@@ -47,6 +58,7 @@ export const startFirebaseSync = () => {
 };
 
 export const migrateDataToFirebase = async () => {
+  alert("⏳ جاري سحب البيانات من جهازك ورفعها إلى السحابة... الرجاء الانتظار");
   syncStarted = true;
   try {
     for (const key of Object.values(KEYS)) {
@@ -59,24 +71,13 @@ export const migrateDataToFirebase = async () => {
     alert("تم رفع جميع البيانات إلى السحابة بنجاح! ☁️🎉");
   } catch (e) {
     console.error("Migration failed:", e);
-    alert("حدث خطأ أثناء الرفع للسحابة.");
+    alert("حدث خطأ أثناء الرفع للسحابة: " + e.message);
   }
 };
 
 // دالة توليد معرف عشوائي فريد
 export const generateId = () => {
   return Math.random().toString(36).substring(2, 11);
-};
-
-// المفاتيح المستخدمة في LocalStorage
-const KEYS = {
-  ROOMS: 'aqsa_game_rooms',
-  PLAYERS: 'aqsa_game_players',
-  CARDS: 'aqsa_game_cards',
-  EVENTS: 'aqsa_game_board_events',
-  LOGS: 'aqsa_game_action_logs',
-  REWARDS: 'aqsa_game_rewards',
-  PRIZE_REQUESTS: 'aqsa_game_prize_requests'
 };
 
 // توليد رمز تتبع لولي الأمر
