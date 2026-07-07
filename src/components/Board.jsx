@@ -513,11 +513,11 @@ export default function Board({
           </button>
           
           <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.75rem', backgroundColor: 'var(--bg-primary)', padding: '0.25rem 0.5rem', borderRadius: 'var(--radius-sm)' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
               <span style={{ width: '10px', height: '4px', backgroundColor: 'var(--success)' }} />
               سلم (صعود)
             </span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
               <span style={{ width: '10px', height: '4px', backgroundColor: 'var(--danger)' }} />
               أفعى (هبوط)
             </span>
@@ -540,6 +540,7 @@ export default function Board({
           }}
           onMouseUp={() => setIsDraggingDrawer(false)}
           onMouseLeave={() => setIsDraggingDrawer(false)}
+          className="force-landscape-mobile"
           style={{
           position: 'fixed',
           top: 0, left: 0, right: 0, bottom: 0,

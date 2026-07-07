@@ -35,6 +35,7 @@ export default function ParentPortal() {
   const [allEvents, setAllEvents] = useState([]);
   const [allPrizeRequests, setAllPrizeRequests] = useState([]);
   const [rewards, setRewards] = useState([]);
+  const [sortMode, setSortMode] = useState('journey'); // Added sort mode
 
   const loadData = () => {
     // Load fresh data
@@ -127,8 +128,14 @@ export default function ParentPortal() {
   }, [student, allPlayers]);
 
   const sortedRoomPlayers = useMemo(() => {
-    return [...studentRoomPlayers].sort((a, b) => b.points - a.points);
-  }, [studentRoomPlayers]);
+    return [...studentRoomPlayers].sort((a, b) => {
+      if (sortMode === 'journey') {
+        return (b.points || 0) - (a.points || 0);
+      } else {
+        return (b.totalCollectedPoints || 0) - (a.totalCollectedPoints || 0);
+      }
+    });
+  }, [studentRoomPlayers, sortMode]);
 
   const studentLogs = useMemo(() => {
     if (!student) return [];
@@ -301,7 +308,7 @@ export default function ParentPortal() {
             </div>
 
             {/* Navigation Tabs */}
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+            <div className="parent-nav-tabs">
               <button 
                 onClick={() => setStudentTab('dashboard')}
                 className={`btn ${studentTab === 'dashboard' ? 'btn-primary' : 'btn-secondary'}`}
@@ -332,7 +339,7 @@ export default function ParentPortal() {
             {studentTab === 'dashboard' && (
               <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 {/* الإحصائيات والمؤشرات */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                <div className="mobile-stat-grid">
                   <div className="stat-card" style={{ padding: '1.5rem' }}>
                     <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>نقاط الرحلة الحالية</div>
                     <div style={{ fontSize: '2.5rem', fontWeight: 900, color: '#38bdf8' }}>{student.points}</div>
@@ -481,37 +488,86 @@ export default function ParentPortal() {
             {studentTab === 'leaderboard' && (
               <div className="fade-in glass-panel" style={{ padding: '2rem' }}>
                 <h3 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', textAlign: 'center', color: '#14b8a6' }}>
-                  🏆 لوحة شرف الغرفة ({allRooms.find(r => r.id === student.roomId)?.name})
+                  🏆 لوحة صدارة الشعبة ({allRooms.find(r => r.id === student.roomId)?.name})
                 </h3>
-                <div style={{ overflowX: 'auto' }}>
+                
+                {/* Toggle Sort Mode */}
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
+                  <button 
+                    onClick={() => setSortMode('journey')}
+                    className={`btn ${sortMode === 'journey' ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ padding: '0.75rem 1.25rem', fontSize: 'var(--text-sm)', flex: '1', minWidth: '200px', maxWidth: '320px' }}
+                  >
+                    📍 تقدم الخريطة (الرحلة)
+                  </button>
+                  <button 
+                    onClick={() => setSortMode('season')}
+                    className={`btn ${sortMode === 'season' ? 'btn-gold' : 'btn-secondary'}`}
+                    style={{ padding: '0.75rem 1.25rem', fontSize: 'var(--text-sm)', flex: '1', minWidth: '200px', maxWidth: '320px' }}
+                  >
+                    🌟 إجمالي تجميع الموسم
+                  </button>
+                </div>
+
+                {/* Top 3 Podium */}
+                {sortedRoomPlayers.length >= 3 && (
+                  <div className="leaderboard-podium" style={{ marginBottom: '2rem' }}>
+                    {/* Second Place */}
+                    <div className="glass-panel podium-card" style={{ borderTop: '4px solid #94a3b8' }}>
+                      <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🥈</div>
+                      <div style={{ fontSize: '2rem' }}>{sortedRoomPlayers[1].avatar}</div>
+                      <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: '0.5rem 0', color: 'var(--text-primary)' }}>{sortedRoomPlayers[1].name}</h3>
+                      <div style={{ fontWeight: 800, color: sortMode === 'journey' ? '#93c5fd' : '#fcd34d', fontSize: '1.3rem' }}>
+                        {sortMode === 'journey' ? sortedRoomPlayers[1].points : sortedRoomPlayers[1].totalCollectedPoints} ن
+                      </div>
+                    </div>
+
+                    {/* First Place */}
+                    <div className="glass-panel podium-card first-place">
+                      <div style={{ fontSize: '3rem', marginBottom: '0.5rem', animation: 'bounce 2s infinite' }}>🥇</div>
+                      <div style={{ fontSize: '2.5rem' }}>{sortedRoomPlayers[0].avatar}</div>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: 900, margin: '0.5rem 0', color: 'var(--gold)' }}>{sortedRoomPlayers[0].name}</h3>
+                      <div style={{ fontWeight: 900, color: sortMode === 'journey' ? '#93c5fd' : '#fcd34d', fontSize: '1.5rem' }}>
+                        {sortMode === 'journey' ? sortedRoomPlayers[0].points : sortedRoomPlayers[0].totalCollectedPoints} ن
+                      </div>
+                    </div>
+
+                    {/* Third Place */}
+                    <div className="glass-panel podium-card" style={{ borderTop: '4px solid #b45309' }}>
+                      <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🥉</div>
+                      <div style={{ fontSize: '2rem' }}>{sortedRoomPlayers[2].avatar}</div>
+                      <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: '0.5rem 0', color: 'var(--text-primary)' }}>{sortedRoomPlayers[2].name}</h3>
+                      <div style={{ fontWeight: 800, color: sortMode === 'journey' ? '#93c5fd' : '#fcd34d', fontSize: '1.3rem' }}>
+                        {sortMode === 'journey' ? sortedRoomPlayers[2].points : sortedRoomPlayers[2].totalCollectedPoints} ن
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="table-scroll">
                   <table className="data-table" style={{ width: '100%', textAlign: 'right', borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
                         <th style={{ padding: '1rem' }}>الترتيب</th>
                         <th style={{ padding: '1rem' }}>الطالب</th>
-                        <th style={{ padding: '1rem' }}>نقاط الرحلة</th>
-                        <th style={{ padding: '1rem' }}>نسبة التقدم</th>
+                        <th style={{ padding: '1rem', color: '#60a5fa' }}>📍 نقاط الرحلة</th>
+                        <th style={{ padding: '1rem', color: '#fcd34d' }}>🌟 نقاط الموسم</th>
+                        <th style={{ padding: '1rem', color: '#34d399' }}>🎁 متجر الجوائز</th>
                       </tr>
                     </thead>
                     <tbody>
                       {sortedRoomPlayers.map((p, idx) => (
-                        <tr key={p.id} style={{ backgroundColor: p.id === student.id ? 'rgba(59, 130, 246, 0.1)' : 'transparent', borderBottom: '1px solid var(--border-light)' }}>
-                          <td style={{ padding: '1rem' }}>
-                            {idx === 0 ? '🥇 الأول' : idx === 1 ? '🥈 الثاني' : idx === 2 ? '🥉 الثالث' : idx + 1}
+                        <tr key={p.id} style={{ backgroundColor: p.id === student.id ? 'rgba(59, 130, 246, 0.15)' : 'transparent', borderBottom: '1px solid var(--border-light)' }}>
+                          <td style={{ padding: '1rem', fontWeight: 900 }}>
+                            {idx === 0 ? <span style={{fontSize:'1.5rem'}}>🥇</span> : idx === 1 ? <span style={{fontSize:'1.5rem'}}>🥈</span> : idx === 2 ? <span style={{fontSize:'1.5rem'}}>🥉</span> : `#${idx + 1}`}
                           </td>
                           <td style={{ padding: '1rem', fontWeight: 700, color: p.id === student.id ? '#38bdf8' : 'var(--text-primary)' }}>
-                            {p.avatar} {p.name}
+                            <span style={{ fontSize: '1.5rem', marginLeft: '0.5rem' }}>{p.avatar}</span> {p.name}
                             {p.id === student.id && <span style={{ marginRight: '0.5rem', fontSize: '0.8rem', color: 'var(--gold)' }}>(طالبك)</span>}
                           </td>
-                          <td style={{ padding: '1rem', color: 'var(--gold)', fontWeight: 700 }}>{p.points} نقطة</td>
-                          <td style={{ padding: '1rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <div className="progress-bar-container" style={{ flex: 1, minWidth: '100px' }}>
-                                <div className="progress-bar-fill" style={{ width: `${p.progressPercentage}%` }}></div>
-                              </div>
-                              <span style={{ fontSize: '0.85rem' }}>{p.progressPercentage}%</span>
-                            </div>
-                          </td>
+                          <td style={{ padding: '1rem', color: '#93c5fd', fontWeight: sortMode === 'journey' ? 900 : 700 }}>{p.points}</td>
+                          <td style={{ padding: '1rem', color: '#fcd34d', fontWeight: sortMode === 'season' ? 900 : 700 }}>{p.totalCollectedPoints || 0}</td>
+                          <td style={{ padding: '1rem', color: '#34d399', fontWeight: 700 }}>{p.rewardPoints || 0}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -528,7 +584,7 @@ export default function ParentPortal() {
                     <h3 style={{ fontSize: '1.8rem', color: 'var(--gold)', marginBottom: '0.5rem' }}>🛍️ متجر الجوائز</h3>
                     <p style={{ color: 'var(--text-secondary)' }}>استبدل نقاطك التكريمية بجوائز رائعة من اختيارك.</p>
                   </div>
-                  <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid rgba(16, 185, 129, 0.3)', textAlign: 'center' }}>
+                  <div className="shop-balance-badge">
                     <div style={{ fontSize: '0.85rem', color: '#34d399', marginBottom: '0.25rem' }}>رصيدك المتاح للشراء</div>
                     <div style={{ fontSize: '1.8rem', fontWeight: 900, color: '#6ee7b7' }}>{student.rewardPoints} ن</div>
                   </div>

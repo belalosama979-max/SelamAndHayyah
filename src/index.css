@@ -379,6 +379,82 @@ html, body {
   flex-wrap: wrap;
 }
 
+/* ====== Mobile Adjustments ====== */
+.mobile-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+.parent-nav-tabs {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 1rem;
+}
+.shop-balance-badge {
+  background-color: rgba(16, 185, 129, 0.15);
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  text-align: center;
+}
+
+@media (max-width: 899px) {
+  /* Force landscape orientation for map wrapper when in portrait on mobile */
+  @media (orientation: portrait) {
+    .force-landscape-mobile {
+      transform: rotate(-90deg);
+      transform-origin: center center;
+      width: 100vh !important;
+      height: 100vw !important;
+      position: absolute !important;
+      top: 50% !important;
+      left: 50% !important;
+      margin-top: -50vw !important;
+      margin-left: -50vh !important;
+      overflow: hidden !important;
+    }
+  }
+
+  .mobile-stat-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+  .mobile-stat-grid .stat-card {
+    padding: 1rem;
+  }
+  .mobile-stat-grid .stat-card > div:first-child {
+    font-size: 0.75rem !important;
+  }
+  .mobile-stat-grid .stat-card > div:nth-child(2) {
+    font-size: 1.5rem !important;
+  }
+
+  .parent-nav-tabs {
+    gap: 0.5rem;
+  }
+  .parent-nav-tabs button {
+    flex: 1;
+    min-width: 45%;
+    font-size: 0.85rem;
+    padding: 0.6rem 0.5rem;
+  }
+
+  .shop-balance-badge {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem !important;
+  }
+  .shop-balance-badge > div:first-child {
+    margin-bottom: 0 !important;
+  }
+  .shop-balance-badge > div:last-child {
+    font-size: 1.25rem !important;
+  }
+}
+
 /* Mobile menu toggle */
 .mobile-menu-btn {
   display: none;
@@ -889,3 +965,5 @@ html, body {
     padding: 1.25rem 1.5rem;
   }
 }
+ 
+ 
