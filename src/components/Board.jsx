@@ -457,16 +457,27 @@ export default function Board({
                   strokeWidth={1.5 * scaleFactor}
                   style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}
                 />
-                <text
-                  dy={0.5 * scaleFactor}
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  fill="#fff"
-                  fontSize={11 * scaleFactor}
-                  fontWeight="900"
-                >
-                  <AvatarDisplay avatar={player.avatar || player.name.charAt(0)} size="1em" />
-                </text>
+                {player.avatar && player.avatar.startsWith('data:image') ? (
+                  <image
+                    href={player.avatar}
+                    x={-12.5 * scaleFactor}
+                    y={-12.5 * scaleFactor}
+                    width={25 * scaleFactor}
+                    height={25 * scaleFactor}
+                    style={{ clipPath: 'circle(50%)' }}
+                  />
+                ) : (
+                  <text
+                    dy={0.5 * scaleFactor}
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fill="#fff"
+                    fontSize={11 * scaleFactor}
+                    fontWeight="900"
+                  >
+                    {player.avatar || player.name.charAt(0)}
+                  </text>
+                )}
               </g>
             </g>
           );
