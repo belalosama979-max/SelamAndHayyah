@@ -763,7 +763,7 @@ function ProfileTab({ student, setStudent }) {
     };
     
     // Save to DB
-    savePlayer(updatedStudent.roomId, updatedStudent);
+    savePlayer(updatedStudent);
     
     // Update parent state
     setStudent(updatedStudent);
