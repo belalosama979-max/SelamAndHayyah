@@ -317,16 +317,12 @@ export default function App() {
     setRooms(getRooms());
   };
 
-  if (currentScreen === 'parent-portal') {
-    return <ParentPortal initialParentCode={initialParentCode} onExit={() => {
-      window.location.href = window.location.pathname;
-    }} />;
-  }
+
 
   // توجيهات Header
   const navClass = (path) => `btn ${currentPath.startsWith(path) ? 'btn-primary' : 'btn-secondary'}`;
 
-  // لا نعرض الـ Header في صفحة الدخول
+  // لا نعرض الـ Header في صفحة الدخول أو بوابة أولياء الأمور
   if (currentPath === '/login' || currentPath === '/') {
     return (
       <LoginGate 
@@ -337,6 +333,12 @@ export default function App() {
         onStudentLogin={() => navigate('/parent-portal')} 
       />
     );
+  }
+
+  if (currentPath === '/parent-portal') {
+    return <ParentPortal initialParentCode={initialParentCode} onExit={() => {
+      navigate('/login');
+    }} />;
   }
 
   return (
