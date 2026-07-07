@@ -233,7 +233,7 @@ export default function Board({
         boxShadow: 'inset 0 0 40px rgba(0, 0, 0, 0.8)',
         maxHeight: isFullscreen ? 'none' : '75vh',
         maxWidth: isFullscreen ? '100vw' : '100%',
-        minWidth: isFullscreen ? 'auto' : '600px', // Prevent SVG from becoming too small on mobile
+        minWidth: isFullscreen ? 'auto' : '0',
         margin: '0 auto',
         flex: isFullscreen ? 1 : 'none'
       }}
@@ -546,121 +546,135 @@ export default function Board({
           backgroundColor: '#070a13',
           zIndex: 1600,
           display: 'flex',
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0.75rem',
-          animation: 'fullscreenEnter 0.25s ease-out',
+          flexDirection: 'column',
+          alignItems: 'stretch',
+          padding: 0,
           direction: 'rtl',
           overflow: 'hidden'
         }}>
           
           {/* إغلاق الخريطة إذا كانت لوحة المعلم مخفية (كما في بوابة الأولياء) */}
           {cards.length === 0 && (
-            <button onClick={() => setIsFullscreen(false)} title="إغلاق العرض" className="btn btn-danger" style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', zIndex: 2000, padding: '0.75rem 1.5rem', fontSize: '1.2rem', fontWeight: 800, boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>❌ إغلاق الخريطة</button>
+            <button onClick={() => setIsFullscreen(false)} title="إغلاق العرض" className="btn btn-danger" style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 2000, padding: '0.6rem 1rem', fontWeight: 800, boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>❌ إغلاق</button>
           )}
 
-          {/* الفئات على اليسار (لوحة الإدارة فقط) */}
+          {/* ====== شريط علوي للموبايل ====== */}
           {cards.length > 0 && (
-            <div style={{ 
-              width: '180px', display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%', 
-              padding: '1rem 0.5rem', alignItems: 'stretch', backgroundColor: 'rgba(11,15,25,0.9)', 
-              borderLeft: '1px solid var(--border-color)', position: 'relative' 
-            }}>
-              <button onClick={() => setIsFullscreen(false)} title="إغلاق العرض المسرحي" className="btn btn-danger" style={{ marginBottom: '2rem', padding: '0.75rem', fontSize: '1rem', fontWeight: 800 }}>❌ إغلاق المسرح</button>
-              
-              {['تجويد', 'حفظ', 'متابعة تربوية'].map((tab) => (
-                <button key={tab} onClick={() => { setFullscreenTab(tab); setIsDrawerOpen(true); }} className="btn" style={{
-                  height: '60px', fontSize: '1.2rem', fontWeight: 800, padding: '0.5rem',
-                  backgroundColor: fullscreenTab === tab && isDrawerOpen ? 'var(--primary)' : 'var(--bg-secondary)', 
-                  color: fullscreenTab === tab && isDrawerOpen ? '#fff' : 'var(--text-primary)',
-                  border: `1px solid ${fullscreenTab === tab && isDrawerOpen ? 'var(--primary-light)' : 'var(--border-color)'}`
-                }}>{tab}</button>
-              ))}
-            </div>
-          )}
-
-          {/* بطاقات Drawer العائمة والقابلة للسحب (Draggable Overlay) */}
-          {isDrawerOpen && activePlayer && (
-            <div className="glass-panel fade-in" style={{
-              position: 'absolute', left: `${drawerPos.x}px`, top: `${drawerPos.y}px`, width: '340px', zIndex: 1700,
-              display: 'flex', flexDirection: 'column', padding: '0', overflow: 'hidden',
-              boxShadow: '0 20px 40px rgba(0,0,0,0.6)', border: '2px solid var(--primary)'
-            }}>
-              {/* شريط السحب والإغلاق */}
-              <div 
-                onMouseDown={(e) => {
-                  setIsDraggingDrawer(true);
-                  setDragOffset({ x: e.clientX - drawerPos.x, y: e.clientY - drawerPos.y });
-                }}
-                style={{ 
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-                  padding: '1rem', backgroundColor: fullscreenTab === 'تجويد' ? 'var(--blue)' : fullscreenTab === 'حفظ' ? 'var(--success)' : 'var(--gold)', cursor: 'move' 
-                }}
-              >
-                <h3 style={{ fontSize: '1.2rem', color: '#fff', margin: 0, userSelect: 'none' }}>{fullscreenTab}</h3>
-                <button onClick={() => setIsDrawerOpen(false)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: '1.2rem', cursor: 'pointer' }}>❌</button>
-              </div>
-              
-              <div style={{ padding: '1rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '1rem', maxHeight: '60vh', overflowY: 'auto' }}>
-                {!selectedFullscreenCard ? (
-                  activeTabCards.map(card => (
-                    <button key={card.id} onClick={() => { handleCardClick(card); }} className="referee-card" style={{ ...getVerticalCardStyle(card, null) }}>
-                      <span className="referee-card-category">{card.category}</span>
-                      <strong className="referee-card-name">{card.name}</strong>
-                      <span className="referee-card-value">
-                        {card.value !== null ? (card.value > 0 ? `+${card.value}` : card.value) : '؟'}
-                      </span>
-                    </button>
-                  ))
-                ) : (
-                  <form onSubmit={(e) => { handleApplyCustomValue(e); }} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', gridColumn: '1 / -1' }}>
-                    <div style={{ display: 'flex', justifyContent: 'center' }}>
-                      <div className="referee-card" style={{ ...getVerticalCardStyle(selectedFullscreenCard, fullscreenCustomValue) }}>
-                        <span className="referee-card-category">{selectedFullscreenCard.category}</span>
-                        <strong className="referee-card-name">{selectedFullscreenCard.name}</strong>
-                        <span className="referee-card-value">{fullscreenCustomValue !== '' ? (Number(fullscreenCustomValue) > 0 ? `+${fullscreenCustomValue}` : fullscreenCustomValue) : '؟'}</span>
-                      </div>
-                    </div>
-                    <input type="number" required placeholder="أدخل القيمة" value={fullscreenCustomValue} onChange={(e) => setFullscreenCustomValue(e.target.value)} className="form-input" style={{ textAlign: 'center', fontSize: '1.2rem', padding: '0.75rem' }} autoFocus />
-                    <button type="submit" className="btn btn-primary" style={{ padding: '0.75rem', fontSize: '1rem' }}>تطبيق</button>
-                    <button type="button" onClick={() => setSelectedFullscreenCard(null)} className="btn btn-secondary" style={{ padding: '0.75rem', fontSize: '1rem' }}>عودة للبطاقات</button>
-                  </form>
-                )}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem',
+              backgroundColor: 'rgba(11,15,25,0.95)', borderBottom: '1px solid var(--border-color)',
+              flexShrink: 0, flexWrap: 'wrap'
+            }} className="fullscreen-topbar">
+              <button onClick={() => setIsFullscreen(false)} className="btn btn-danger" style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem' }}>❌</button>
+              {activePlayer && <span style={{ color: 'var(--gold)', fontWeight: 800, fontSize: '0.9rem' }}>{activePlayer.avatar} {activePlayer.name}</span>}
+              <div style={{ display: 'flex', gap: '0.4rem', flex: 1, justifyContent: 'flex-end' }}>
+                {['تجويد', 'حفظ', 'متابعة تربوية'].map((tab) => (
+                  <button key={tab} onClick={() => { setFullscreenTab(tab); setIsDrawerOpen(true); }} className="btn" style={{
+                    fontSize: '0.75rem', padding: '0.35rem 0.6rem',
+                    backgroundColor: fullscreenTab === tab && isDrawerOpen ? 'var(--primary)' : 'var(--bg-tertiary)',
+                    color: fullscreenTab === tab && isDrawerOpen ? '#fff' : 'var(--text-secondary)',
+                  }}>{tab}</button>
+                ))}
               </div>
             </div>
           )}
 
-          {/* الخريطة في المنتصف */}
-          <div style={{ flex: 1, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {boardContent}
-          </div>
-
-          {/* شريط اللاعبين قابل للطي على اليمين */}
-          <div style={{ 
-            width: isPlayersCollapsed ? '60px' : '300px', height: '100%', transition: 'width 0.3s ease',
-            backgroundColor: 'rgba(11,15,25,0.9)', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column'
-          }}>
-            <button onClick={() => setIsPlayersCollapsed(!isPlayersCollapsed)} className="btn" style={{ margin: '0.5rem', justifyContent: 'center' }}>
-              {isPlayersCollapsed ? '👥' : 'إخفاء اللاعبين ➡️'}
-            </button>
-            {!isPlayersCollapsed && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.5rem', overflowY: 'auto', flex: 1 }}>
-                {players.length > 0 ? players.map((p) => {
-                  const isSelected = activePlayer && activePlayer.id === p.id;
-                  return (
-                    <button key={p.id} onClick={() => setActivePlayer(p)} className="btn" style={{
-                      justifyContent: 'space-between', backgroundColor: isSelected ? 'var(--primary-light)' : 'transparent',
-                      border: `1px solid ${isSelected ? 'var(--primary)' : 'rgba(255,255,255,0.03)'}`, color: isSelected ? '#fff' : 'var(--text-secondary)',
-                      padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '1rem'
-                    }}>
-                      <span style={{ fontWeight: 800 }}>{p.rank} - {p.avatar} {p.name}</span>
-                      <span style={{ color: 'var(--gold)' }}>{p.points}</span>
-                    </button>
-                  );
-                }) : <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>لا يوجد طلاب</div>}
+          {/* ====== المنتصف: خريطة + لاعبون (Desktop Row) ====== */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'row', overflow: 'hidden', minHeight: 0 }}>
+            
+            {/* الفئات على اليسار - Desktop فقط */}
+            {cards.length > 0 && (
+              <div className="fullscreen-side-players" style={{ 
+                width: '160px', flexDirection: 'column', gap: '1rem', flexShrink: 0,
+                padding: '1rem 0.5rem', alignItems: 'stretch', backgroundColor: 'rgba(11,15,25,0.9)', 
+                borderLeft: '1px solid var(--border-color)'
+              }}>
+                <button onClick={() => setIsFullscreen(false)} className="btn btn-danger" style={{ marginBottom: '1rem', padding: '0.6rem', fontSize: '0.85rem', fontWeight: 800 }}>❌ إغلاق</button>
+                {['تجويد', 'حفظ', 'متابعة تربوية'].map((tab) => (
+                  <button key={tab} onClick={() => { setFullscreenTab(tab); setIsDrawerOpen(true); }} className="btn" style={{
+                    height: '55px', fontSize: '1rem', fontWeight: 800, padding: '0.5rem',
+                    backgroundColor: fullscreenTab === tab && isDrawerOpen ? 'var(--primary)' : 'var(--bg-secondary)', 
+                    color: fullscreenTab === tab && isDrawerOpen ? '#fff' : 'var(--text-primary)',
+                    border: `1px solid ${fullscreenTab === tab && isDrawerOpen ? 'var(--primary-light)' : 'var(--border-color)'}`
+                  }}>{tab}</button>
+                ))}
               </div>
             )}
+
+            {/* بطاقات Drawer العائمة */}
+            {isDrawerOpen && activePlayer && (
+              <div className="glass-panel fade-in" style={{
+                position: 'absolute', left: `${drawerPos.x}px`, top: `${drawerPos.y}px`, width: 'min(340px, 90vw)', zIndex: 1700,
+                display: 'flex', flexDirection: 'column', padding: '0', overflow: 'hidden',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.6)', border: '2px solid var(--primary)'
+              }}>
+                <div 
+                  onMouseDown={(e) => { setIsDraggingDrawer(true); setDragOffset({ x: e.clientX - drawerPos.x, y: e.clientY - drawerPos.y }); }}
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', backgroundColor: fullscreenTab === 'تجويد' ? 'var(--blue)' : fullscreenTab === 'حفظ' ? 'var(--success)' : 'var(--gold)', cursor: 'move' }}
+                >
+                  <h3 style={{ fontSize: '1rem', color: '#fff', margin: 0, userSelect: 'none' }}>{fullscreenTab} - {activePlayer.name}</h3>
+                  <button onClick={() => setIsDrawerOpen(false)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
+                </div>
+                
+                <div style={{ padding: '0.75rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(95px, 1fr))', gap: '0.75rem', maxHeight: '55vh', overflowY: 'auto' }}>
+                  {!selectedFullscreenCard ? (
+                    activeTabCards.map(card => (
+                      <button key={card.id} onClick={() => { handleCardClick(card); }} className="referee-card" style={{ ...getVerticalCardStyle(card, null) }}>
+                        <span className="referee-card-category">{card.category}</span>
+                        <strong className="referee-card-name">{card.name}</strong>
+                        <span className="referee-card-value">{card.value !== null ? (card.value > 0 ? `+${card.value}` : card.value) : '؟'}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <form onSubmit={(e) => { handleApplyCustomValue(e); }} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', gridColumn: '1 / -1' }}>
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        <div className="referee-card" style={{ ...getVerticalCardStyle(selectedFullscreenCard, fullscreenCustomValue) }}>
+                          <span className="referee-card-category">{selectedFullscreenCard.category}</span>
+                          <strong className="referee-card-name">{selectedFullscreenCard.name}</strong>
+                          <span className="referee-card-value">{fullscreenCustomValue !== '' ? (Number(fullscreenCustomValue) > 0 ? `+${fullscreenCustomValue}` : fullscreenCustomValue) : '؟'}</span>
+                        </div>
+                      </div>
+                      <input type="number" required placeholder="أدخل القيمة" value={fullscreenCustomValue} onChange={(e) => setFullscreenCustomValue(e.target.value)} className="form-input" style={{ textAlign: 'center', fontSize: '1.1rem', padding: '0.75rem' }} autoFocus />
+                      <button type="submit" className="btn btn-primary" style={{ padding: '0.75rem', fontSize: '0.95rem' }}>تطبيق</button>
+                      <button type="button" onClick={() => setSelectedFullscreenCard(null)} className="btn btn-secondary" style={{ padding: '0.75rem', fontSize: '0.95rem' }}>عودة</button>
+                    </form>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* الخريطة في المنتصف */}
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+              {boardContent}
+            </div>
+
+            {/* شريط اللاعبين على اليمين - Desktop */}
+            <div style={{ 
+              width: isPlayersCollapsed ? '55px' : '260px', flexShrink: 0, transition: 'width 0.3s ease',
+              backgroundColor: 'rgba(11,15,25,0.9)', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column',
+              overflow: 'hidden'
+            }} className="fullscreen-side-players">
+              <button onClick={() => setIsPlayersCollapsed(!isPlayersCollapsed)} className="btn" style={{ margin: '0.4rem', justifyContent: 'center', fontSize: '0.8rem', padding: '0.4rem' }}>
+                {isPlayersCollapsed ? '👥' : '← إخفاء'}
+              </button>
+              {!isPlayersCollapsed && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '0.4rem', overflowY: 'auto', flex: 1 }}>
+                  {players.length > 0 ? players.map((p) => {
+                    const isSelected = activePlayer && activePlayer.id === p.id;
+                    return (
+                      <button key={p.id} onClick={() => setActivePlayer(p)} className="btn" style={{
+                        justifyContent: 'space-between', backgroundColor: isSelected ? 'var(--primary-light)' : 'transparent',
+                        border: `1px solid ${isSelected ? 'var(--primary)' : 'rgba(255,255,255,0.03)'}`, color: isSelected ? '#fff' : 'var(--text-secondary)',
+                        padding: '0.5rem 0.6rem', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', minHeight: 'auto'
+                      }}>
+                        <span style={{ fontWeight: 800 }}>{p.rank}. {p.avatar} {p.name}</span>
+                        <span style={{ color: 'var(--gold)', fontSize: '0.8rem' }}>{p.points}</span>
+                      </button>
+                    );
+                  }) : <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '1rem' }}>لا يوجد طلاب</div>}
+                </div>
+              )}
+            </div>
           </div>
         </div>,
         document.body
@@ -679,6 +693,16 @@ export default function Board({
         .vertical-game-card:hover {
           transform: translateY(-5px) scale(1.03);
           box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4) !important;
+        }
+        /* Desktop: side panel layout */
+        @media (min-width: 900px) {
+          .fullscreen-topbar { display: none !important; }
+          .fullscreen-side-players { display: flex !important; }
+        }
+        /* Mobile: topbar + hide side panels */
+        @media (max-width: 899px) {
+          .fullscreen-topbar { display: flex !important; }
+          .fullscreen-side-players { display: none !important; }
         }
       `}</style>
     </div>

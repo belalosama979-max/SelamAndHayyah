@@ -30,6 +30,9 @@ export default function App() {
   // المظهر (Light/Dark Mode)
   const [theme, setTheme] = useState(localStorage.getItem('aqsa_theme') || 'dark');
 
+  // قائمة الموبايل
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   // حالة الكود الأولي لولي الأمر
   const [initialParentCode, setInitialParentCode] = useState('');
 
@@ -341,117 +344,111 @@ export default function App() {
     }} />;
   }
 
+  const navBtnStyle = (path, activeColor = 'var(--primary)', activeBg = null, inactiveBg = null, inactiveColor = null) => ({
+    fontWeight: 700,
+    backgroundColor: currentPath.startsWith(path) ? (activeBg || activeColor) : (inactiveBg || 'transparent'),
+    color: currentPath.startsWith(path) ? '#fff' : (inactiveColor || 'var(--text-secondary)'),
+    border: inactiveBg ? `1px solid ${inactiveBg}` : '1px solid var(--border-color)'
+  });
+
+  const NavButtons = ({ onClose = () => {} }) => (
+    <>
+      <button
+        onClick={() => { setTheme(prev => prev === 'dark' ? 'light' : 'dark'); onClose(); }}
+        className="btn btn-secondary"
+        style={{ fontWeight: 700 }}
+      >
+        {theme === 'dark' ? '💡 المضيء' : '🌙 الداكن'}
+      </button>
+
+      {sessionStorage.getItem('aqsa_isAdmin') === 'true' && (
+        <>
+          <button onClick={() => { handleBackToDashboard(); onClose(); }} className="btn" style={navBtnStyle('/dashboard')}>
+            <HomeIcon /> الرئيسية
+          </button>
+          <button onClick={() => { navigate('/shop'); onClose(); }} className="btn"
+            style={{ fontWeight: 700, backgroundColor: currentPath === '/shop' ? 'var(--success)' : 'rgba(16, 185, 129, 0.1)', color: currentPath === '/shop' ? '#fff' : '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}
+          >🎁 المتجر</button>
+          <button onClick={() => { navigate('/leaderboard'); onClose(); }} className="btn"
+            style={{ fontWeight: 700, backgroundColor: currentPath === '/leaderboard' ? 'var(--gold)' : 'rgba(245, 158, 11, 0.1)', color: currentPath === '/leaderboard' ? '#fff' : '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)' }}
+          >🏆 الأبطال</button>
+          <button onClick={() => { navigate('/parent-portal'); onClose(); }} className="btn"
+            style={{ fontWeight: 700, backgroundColor: currentPath === '/parent-portal' ? 'var(--blue)' : 'rgba(59, 130, 246, 0.1)', color: currentPath === '/parent-portal' ? '#fff' : '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)' }}
+          >👨‍👩‍👦 أولياء</button>
+          <button onClick={() => { navigate('/admin'); onClose(); }} className="btn" style={navBtnStyle('/admin')}>
+            <SettingsIcon /> الإدارة
+          </button>
+        </>
+      )}
+
+      <button
+        onClick={() => { sessionStorage.removeItem('aqsa_isAdmin'); navigate('/login'); onClose(); }}
+        className="btn btn-secondary"
+        style={{ fontWeight: 700, color: '#ef4444', borderColor: '#ef444450' }}
+      >
+        خروج
+      </button>
+    </>
+  );
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       
       {/* ================= الشريط العلوي (Navbar) ================= */}
-      <header className="glass-panel" style={{
-        padding: '1rem 2rem',
-        borderBottom: '1px solid var(--border-color)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        position: 'sticky',
-        top: 0,
-        zIndex: 100
-      }}>
-        {/* شعار التطبيق باللغة العربية */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <span style={{ fontSize: '2rem' }}>🕌</span>
+      <header className="glass-panel app-navbar">
+        {/* الشعار */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }} className="app-navbar-logo">
+          <span style={{ fontSize: '1.8rem' }}>🕌</span>
           <div>
-            <h1 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>
-              لعبة سلم وحية طريق المسجد الأقصى
+            <h1 style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
+              سلم وحية - طريق الأقصى
             </h1>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-              نظام تعليمي وتربوي متكامل لتتبع تقدم الطلاب
+            <p style={{ color: 'var(--text-secondary)' }}>
+              نظام تعليمي وتربوي متكامل
             </p>
           </div>
         </div>
 
-        {/* أزرار التنقل الرئيسية والمظهر */}
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <button 
-            onClick={() => setTheme(prev => prev === 'dark' ? 'light' : 'dark')} 
-            className="btn btn-secondary"
-            style={{ fontWeight: 700, gap: '0.25rem' }}
-          >
-            {theme === 'dark' ? '💡 المظهر المضيء' : '🌙 المظهر الداكن'}
-          </button>
-
-          {sessionStorage.getItem('aqsa_isAdmin') === 'true' && (
-            <>
-              <button 
-                onClick={handleBackToDashboard} 
-                className={navClass('/dashboard')}
-              >
-                <HomeIcon /> الرئيسية (لوحة الغرف)
-              </button>
-              
-              <button 
-                onClick={() => navigate('/shop')} 
-                className={navClass('/shop')}
-                style={{ fontWeight: 700, backgroundColor: currentPath === '/shop' ? 'var(--primary)' : 'rgba(16, 185, 129, 0.1)', color: currentPath === '/shop' ? '#fff' : '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)' }}
-              >
-                🎁 متجر الجوائز
-              </button>
-
-              <button 
-                onClick={() => navigate('/leaderboard')} 
-                className={navClass('/leaderboard')}
-                style={{ fontWeight: 700, backgroundColor: currentPath === '/leaderboard' ? 'var(--primary)' : 'rgba(245, 158, 11, 0.1)', color: currentPath === '/leaderboard' ? '#fff' : '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)' }}
-              >
-                🏆 لوحة الأبطال
-              </button>
-
-              <button 
-                onClick={() => navigate('/parent-portal')} 
-                className={navClass('/parent-portal')}
-                style={{ fontWeight: 700, backgroundColor: currentPath === '/parent-portal' ? 'var(--primary)' : 'rgba(59, 130, 246, 0.1)', color: currentPath === '/parent-portal' ? '#fff' : '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)' }}
-              >
-                👨‍👩‍👦 بوابة أولياء الأمور
-              </button>
-
-              <button 
-                onClick={() => navigate('/admin')} 
-                className={navClass('/admin')}
-              >
-                <SettingsIcon /> لوحة إدارة النظام
-              </button>
-            </>
-          )}
-          
-          <button 
-            onClick={() => {
-              sessionStorage.removeItem('aqsa_isAdmin');
-              navigate('/login');
-            }} 
-            className="btn btn-secondary"
-            style={{ fontWeight: 700, color: '#ef4444' }}
-          >
-            تسجيل خروج
-          </button>
+        {/* أزرار Desktop */}
+        <div className="app-navbar-actions">
+          <NavButtons />
         </div>
+
+        {/* زر قائمة الموبايل */}
+        <button
+          className="mobile-menu-btn"
+          onClick={() => setMobileMenuOpen(true)}
+          aria-label="فتح القائمة"
+        >
+          ☰
+        </button>
       </header>
 
+      {/* ================= قائمة الموبايل الجانبية ================= */}
+      {mobileMenuOpen && (
+        <div className="mobile-nav-drawer">
+          <div className="mobile-nav-backdrop" onClick={() => setMobileMenuOpen(false)} />
+          <div className="mobile-nav-panel">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--border-color)' }}>
+              <span style={{ fontWeight: 800, fontSize: '1.1rem' }}>🕌 القائمة</span>
+              <button onClick={() => setMobileMenuOpen(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>✕</button>
+            </div>
+            <NavButtons onClose={() => setMobileMenuOpen(false)} />
+          </div>
+        </div>
+      )}
+
       {/* ================= المحتوى الرئيسي للموقع ================= */}
-      <main style={{ flex: 1, padding: '2rem', maxWidth: '1440px', width: '100%', margin: '0 auto' }}>
+      <main className="app-main" style={{ flex: 1 }}>
         <Routes>
         {/* 1. الشاشة الرئيسية (لوحة تحكم المعلم واختيار الغرفة) */}
         <Route path="/dashboard" element={
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              backgroundColor: 'var(--bg-secondary)',
-              padding: '1.25rem 1.5rem',
-              borderRadius: 'var(--radius-lg)',
-              border: '1px solid var(--border-color)'
-            }}>
+            <div className="dashboard-header">
               <div>
-                <h2 style={{ fontSize: '1.4rem', fontWeight: 800 }}>📂 نسخ اللعبة النشطة والمؤرشفة</h2>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                  يمكنك إدارة عدد غير محدود من الغرف وحلقات التحفيظ. تحتوي كل نسخة على خرائط، نقاط، وتتبع طلاب خاص بها.
+                <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 800 }}>📂 نسخ اللعبة النشطة والمؤرشفة</h2>
+                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                  يمكنك إدارة عدد غير محدود من الغرف وحلقات التحفيظ.
                 </p>
               </div>
               <button 
@@ -533,10 +530,10 @@ export default function App() {
             </div>
 
             {/* تخطيط شاشة اللعب: خريطة + تحكم باللاعبين والبطاقات */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(450px, 1fr) 380px', gap: '1.5rem', alignItems: 'start' }}>
+            <div className="game-layout" style={{ alignItems: 'start' }}>
               
               {/* العمود الأيمن: لوحة الخريطة */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div className="game-layout-board">
                 <Board 
                   players={activePlayers}
                   boardEvents={boardEvents}
@@ -552,7 +549,7 @@ export default function App() {
               </div>
 
               {/* العمود الأيسر: الطلاب والتحكم وتطبيق البطاقات */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div className="game-layout-controls">
                 
                 {/* قائمة اختيار الطالب النشط */}
                 <div className="glass-panel" style={{

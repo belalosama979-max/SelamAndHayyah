@@ -260,16 +260,8 @@ export default function AdminPanel({ onDataChange }) {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: '1.5rem', minHeight: '600px' }}>
-      {/* القائمة الجانبية للتبويبات */}
-      <div className="glass-panel" style={{
-        padding: '1.25rem',
-        borderRadius: 'var(--radius-lg)',
-        border: '1px solid var(--border-color)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '0.5rem'
-      }}>
+    <div className="admin-layout">
+      <div className="glass-panel admin-sidebar">
         <h4 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '1rem', color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
           🛠️ لوحة إدارة النظام
         </h4>
@@ -341,13 +333,7 @@ export default function AdminPanel({ onDataChange }) {
         </button>
       </div>
 
-      {/* المحتوى التفصيلي للتبويب النشط */}
-      <div className="glass-panel" style={{
-        padding: '1.5rem',
-        borderRadius: 'var(--radius-lg)',
-        border: '1px solid var(--border-color)',
-        overflowY: 'auto'
-      }}>
+      <div className="glass-panel admin-content">
         
         {/* ================= تبويب إدارة الغرف ================= */}
         {activeTab === 'rooms' && (

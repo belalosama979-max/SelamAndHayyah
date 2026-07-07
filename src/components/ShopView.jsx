@@ -127,7 +127,7 @@ export default function ShopView({ onBack }) {
             لا توجد جوائز مضافة حالياً في المتجر.
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
+          <div className="shop-grid">
             {/* Sort so featured rewards are first */}
             {[...rewards].sort((a, b) => b.isFeatured - a.isFeatured).map(reward => {
               const isOutOfStock = reward.remainingStock <= 0;

@@ -73,55 +73,55 @@ export default function LeaderboardView({ onBack }) {
       </div>
 
       {/* Toggle Sort Mode */}
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
         <button 
           onClick={() => setSortMode('journey')}
           className={`btn ${sortMode === 'journey' ? 'btn-primary' : 'btn-secondary'}`}
-          style={{ padding: '1rem 2rem', fontSize: '1.1rem' }}
+          style={{ padding: '0.75rem 1.25rem', fontSize: 'var(--text-sm)', flex: '1', minWidth: '200px', maxWidth: '320px' }}
         >
-          📍 الترتيب حسب تقدم الخريطة (نقاط الرحلة)
+          📍 تقدم الخريطة (الرحلة)
         </button>
         <button 
           onClick={() => setSortMode('season')}
           className={`btn ${sortMode === 'season' ? 'btn-gold' : 'btn-secondary'}`}
-          style={{ padding: '1rem 2rem', fontSize: '1.1rem' }}
+          style={{ padding: '0.75rem 1.25rem', fontSize: 'var(--text-sm)', flex: '1', minWidth: '200px', maxWidth: '320px' }}
         >
-          🌟 الترتيب حسب إجمالي تجميع الموسم
+          🌟 إجمالي تجميع الموسم
         </button>
       </div>
 
       {/* Top 3 Podium */}
       {sortedPlayers.length >= 3 && (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: '1.5rem', marginTop: '2rem', marginBottom: '2rem' }}>
+        <div className="leaderboard-podium">
           {/* Second Place */}
-          <div className="glass-panel" style={{ width: '220px', padding: '1.5rem', textAlign: 'center', borderTop: '4px solid #94a3b8', borderRadius: 'var(--radius-lg)' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🥈</div>
-            <div style={{ fontSize: '2.5rem' }}>{sortedPlayers[1].avatar}</div>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: '0.5rem 0', color: 'var(--text-primary)' }}>{sortedPlayers[1].name}</h3>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>{getRoomName(sortedPlayers[1].roomId)}</div>
-            <div style={{ fontWeight: 800, color: sortMode === 'journey' ? '#93c5fd' : '#fcd34d', fontSize: '1.5rem' }}>
+          <div className="glass-panel podium-card" style={{ borderTop: '4px solid #94a3b8' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🥈</div>
+            <div style={{ fontSize: '2rem' }}>{sortedPlayers[1].avatar}</div>
+            <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: '0.5rem 0', color: 'var(--text-primary)' }}>{sortedPlayers[1].name}</h3>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>{getRoomName(sortedPlayers[1].roomId)}</div>
+            <div style={{ fontWeight: 800, color: sortMode === 'journey' ? '#93c5fd' : '#fcd34d', fontSize: '1.3rem' }}>
               {sortMode === 'journey' ? sortedPlayers[1].points : sortedPlayers[1].totalCollectedPoints} ن
             </div>
           </div>
 
           {/* First Place */}
-          <div className="glass-panel" style={{ width: '260px', padding: '2rem', textAlign: 'center', borderTop: '6px solid var(--gold)', borderRadius: 'var(--radius-lg)', transform: 'translateY(-20px)', boxShadow: '0 10px 30px rgba(245, 158, 11, 0.2)' }}>
-            <div style={{ fontSize: '4rem', marginBottom: '0.5rem', animation: 'bounce 2s infinite' }}>🥇</div>
-            <div style={{ fontSize: '3.5rem' }}>{sortedPlayers[0].avatar}</div>
-            <h3 style={{ fontSize: '1.5rem', fontWeight: 900, margin: '0.5rem 0', color: 'var(--gold)' }}>{sortedPlayers[0].name}</h3>
-            <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>{getRoomName(sortedPlayers[0].roomId)}</div>
-            <div style={{ fontWeight: 900, color: sortMode === 'journey' ? '#93c5fd' : '#fcd34d', fontSize: '2rem' }}>
+          <div className="glass-panel podium-card first-place">
+            <div style={{ fontSize: '3rem', marginBottom: '0.5rem', animation: 'bounce 2s infinite' }}>🥇</div>
+            <div style={{ fontSize: '2.5rem' }}>{sortedPlayers[0].avatar}</div>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 900, margin: '0.5rem 0', color: 'var(--gold)' }}>{sortedPlayers[0].name}</h3>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>{getRoomName(sortedPlayers[0].roomId)}</div>
+            <div style={{ fontWeight: 900, color: sortMode === 'journey' ? '#93c5fd' : '#fcd34d', fontSize: '1.5rem' }}>
               {sortMode === 'journey' ? sortedPlayers[0].points : sortedPlayers[0].totalCollectedPoints} ن
             </div>
           </div>
 
           {/* Third Place */}
-          <div className="glass-panel" style={{ width: '220px', padding: '1.5rem', textAlign: 'center', borderTop: '4px solid #b45309', borderRadius: 'var(--radius-lg)' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🥉</div>
-            <div style={{ fontSize: '2.5rem' }}>{sortedPlayers[2].avatar}</div>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: '0.5rem 0', color: 'var(--text-primary)' }}>{sortedPlayers[2].name}</h3>
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>{getRoomName(sortedPlayers[2].roomId)}</div>
-            <div style={{ fontWeight: 800, color: sortMode === 'journey' ? '#93c5fd' : '#fcd34d', fontSize: '1.5rem' }}>
+          <div className="glass-panel podium-card" style={{ borderTop: '4px solid #b45309' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🥉</div>
+            <div style={{ fontSize: '2rem' }}>{sortedPlayers[2].avatar}</div>
+            <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: '0.5rem 0', color: 'var(--text-primary)' }}>{sortedPlayers[2].name}</h3>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>{getRoomName(sortedPlayers[2].roomId)}</div>
+            <div style={{ fontWeight: 800, color: sortMode === 'journey' ? '#93c5fd' : '#fcd34d', fontSize: '1.3rem' }}>
               {sortMode === 'journey' ? sortedPlayers[2].points : sortedPlayers[2].totalCollectedPoints} ن
             </div>
           </div>
@@ -129,7 +129,7 @@ export default function LeaderboardView({ onBack }) {
       )}
 
       {/* Full List Table */}
-      <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', overflowX: 'auto' }}>
+      <div className="glass-panel table-scroll" style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border-color)' }}>

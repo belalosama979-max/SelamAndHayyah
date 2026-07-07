@@ -29,11 +29,13 @@ const KEYS = {
 
 let syncStarted = false;
 
-const setLocalItem = (key, value) => {
+const setLocalItem = (key, value, isInit = false) => {
   localStorage.setItem(key, value);
-  const now = Date.now();
-  localStorage.setItem(key + '_time', now.toString());
-  if (syncStarted) {
+  const now = isInit ? 0 : Date.now();
+  if (!isInit || !localStorage.getItem(key + '_time')) {
+    localStorage.setItem(key + '_time', now.toString());
+  }
+  if (syncStarted && !isInit) {
     setDoc(doc(db, "data", key), { value, lastUpdated: now }).catch(console.error);
   }
 };
@@ -103,7 +105,7 @@ export const ensureParentCodes = () => {
       return p;
     });
     if (updated) {
-      setLocalItem(KEYS.PLAYERS, JSON.stringify(newPlayers));
+      setLocalItem(KEYS.PLAYERS, JSON.stringify(newPlayers), true);
     }
   } catch (e) {
     console.error('Error ensuring parent codes:', e);
@@ -118,7 +120,7 @@ export const initDatabase = () => {
     cards = JSON.parse(localStorage.getItem(KEYS.CARDS) || '[]');
   } catch(e) {}
   if (!localStorage.getItem(KEYS.CARDS) || cards.length === 0) {
-    setLocalItem(KEYS.CARDS, JSON.stringify(DEFAULT_CARDS));
+    setLocalItem(KEYS.CARDS, JSON.stringify(DEFAULT_CARDS), true);
   }
 
   let events = [];
@@ -126,24 +128,24 @@ export const initDatabase = () => {
     events = JSON.parse(localStorage.getItem(KEYS.EVENTS) || '[]');
   } catch(e) {}
   if (!localStorage.getItem(KEYS.EVENTS) || events.length === 0) {
-    setLocalItem(KEYS.EVENTS, JSON.stringify(DEFAULT_BOARD_EVENTS));
+    setLocalItem(KEYS.EVENTS, JSON.stringify(DEFAULT_BOARD_EVENTS), true);
   }
 
   if (!localStorage.getItem(KEYS.ROOMS)) {
-    setLocalItem(KEYS.ROOMS, JSON.stringify([]));
+    setLocalItem(KEYS.ROOMS, JSON.stringify([]), true);
   } else {
     // تنظيف السجلات التالفة للغرف
     try {
       const rooms = JSON.parse(localStorage.getItem(KEYS.ROOMS) || '[]');
       const cleanedRooms = rooms.filter(r => r.id && r.id !== 'undefined');
       if (cleanedRooms.length !== rooms.length) {
-        setLocalItem(KEYS.ROOMS, JSON.stringify(cleanedRooms));
+        setLocalItem(KEYS.ROOMS, JSON.stringify(cleanedRooms), true);
       }
     } catch(e) {}
   }
 
   if (!localStorage.getItem(KEYS.PLAYERS)) {
-    setLocalItem(KEYS.PLAYERS, JSON.stringify([]));
+    setLocalItem(KEYS.PLAYERS, JSON.stringify([]), true);
   } else {
     // تنظيف السجلات التالفة للاعبين وتحديث الحقول الجديدة للطلاب الحاليين
     try {
@@ -168,8 +170,6 @@ export const initDatabase = () => {
         // هذا يضمن أن مواقع الطلاب على الخريطة متناسقة مع نقاطهم والهدف 7000
         const expectedPosition = Math.min(100, 1 + Math.floor((p.points || 0) / 70));
         if (p.position !== expectedPosition) {
-           // نتحقق إذا كان يقف على خانة نهاية سلم أو أفعى لا نغير موقعه إذا كانت نقاطه تتطابق، 
-           // لكن لتبسيط الأمر ولأننا غيرنا القاعدة الأساسية، سنجعل الموقع متطابقاً مع النقاط.
            p.position = expectedPosition;
            updated = true;
         }
@@ -177,34 +177,34 @@ export const initDatabase = () => {
         return p;
       });
       if (cleanedPlayers.length !== players.length || updated) {
-        setLocalItem(KEYS.PLAYERS, JSON.stringify(cleanedPlayers));
+        setLocalItem(KEYS.PLAYERS, JSON.stringify(cleanedPlayers), true);
       }
     } catch(e) {}
   }
 
   if (!localStorage.getItem(KEYS.LOGS)) {
-    setLocalItem(KEYS.LOGS, JSON.stringify([]));
+    setLocalItem(KEYS.LOGS, JSON.stringify([]), true);
   }
   
   if (!localStorage.getItem(KEYS.REWARDS)) {
-    setLocalItem(KEYS.REWARDS, JSON.stringify(DEFAULT_REWARDS));
+    setLocalItem(KEYS.REWARDS, JSON.stringify(DEFAULT_REWARDS), true);
   } else {
     // If rewards exist but are empty, seed them. Or force seeding new items if needed.
     const currentRewards = JSON.parse(localStorage.getItem(KEYS.REWARDS));
     if (currentRewards.length === 0) {
-      setLocalItem(KEYS.REWARDS, JSON.stringify(DEFAULT_REWARDS));
+      setLocalItem(KEYS.REWARDS, JSON.stringify(DEFAULT_REWARDS), true);
     } else {
       // Temporary check to update prices for existing items (so the user gets the updated shop)
       const hasOldPrices = currentRewards.some(r => r.name === 'كاميرا' && r.pointsCost !== 2000);
       const isMissingNewItems = !currentRewards.some(r => r.name === 'أبو صالح');
       if (hasOldPrices || isMissingNewItems) {
-        setLocalItem(KEYS.REWARDS, JSON.stringify(DEFAULT_REWARDS));
+        setLocalItem(KEYS.REWARDS, JSON.stringify(DEFAULT_REWARDS), true);
       }
     }
   }
   
   if (!localStorage.getItem(KEYS.PRIZE_REQUESTS)) {
-    setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify([]));
+    setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify([]), true);
   }
 
   // --- One-time fix for Abdulrahman Totanji ---
