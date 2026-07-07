@@ -1,3 +1,4 @@
+import AvatarDisplay from './AvatarDisplay';
 import React, { useState, useEffect, useMemo } from 'react';
 import { getAllPlayers, getRooms, getAllLogs, getBoardEvents, getAllPrizeRequests, getRewards, orderPrize, savePlayer } from '../db/database';
 import Board from './Board';
@@ -515,7 +516,7 @@ export default function ParentPortal() {
                     {/* Second Place */}
                     <div className="glass-panel podium-card" style={{ borderTop: '4px solid #94a3b8' }}>
                       <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🥈</div>
-                      <div style={{ fontSize: '2rem' }}>{sortedRoomPlayers[1].avatar}</div>
+                      <div><AvatarDisplay avatar={sortedRoomPlayers[1].avatar} size="2.5rem" /></div>
                       <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: '0.5rem 0', color: 'var(--text-primary)' }}>{sortedRoomPlayers[1].name}</h3>
                       <div style={{ fontWeight: 800, color: sortMode === 'journey' ? '#93c5fd' : '#fcd34d', fontSize: '1.3rem' }}>
                         {sortMode === 'journey' ? sortedRoomPlayers[1].points : sortedRoomPlayers[1].totalCollectedPoints} ن
@@ -525,7 +526,7 @@ export default function ParentPortal() {
                     {/* First Place */}
                     <div className="glass-panel podium-card first-place">
                       <div style={{ fontSize: '3rem', marginBottom: '0.5rem', animation: 'bounce 2s infinite' }}>🥇</div>
-                      <div style={{ fontSize: '2.5rem' }}>{sortedRoomPlayers[0].avatar}</div>
+                      <div><AvatarDisplay avatar={sortedRoomPlayers[0].avatar} size="3rem" /></div>
                       <h3 style={{ fontSize: '1.2rem', fontWeight: 900, margin: '0.5rem 0', color: 'var(--gold)' }}>{sortedRoomPlayers[0].name}</h3>
                       <div style={{ fontWeight: 900, color: sortMode === 'journey' ? '#93c5fd' : '#fcd34d', fontSize: '1.5rem' }}>
                         {sortMode === 'journey' ? sortedRoomPlayers[0].points : sortedRoomPlayers[0].totalCollectedPoints} ن
@@ -535,7 +536,7 @@ export default function ParentPortal() {
                     {/* Third Place */}
                     <div className="glass-panel podium-card" style={{ borderTop: '4px solid #b45309' }}>
                       <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🥉</div>
-                      <div style={{ fontSize: '2rem' }}>{sortedRoomPlayers[2].avatar}</div>
+                      <div><AvatarDisplay avatar={sortedRoomPlayers[2].avatar} size="2.5rem" /></div>
                       <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: '0.5rem 0', color: 'var(--text-primary)' }}>{sortedRoomPlayers[2].name}</h3>
                       <div style={{ fontWeight: 800, color: sortMode === 'journey' ? '#93c5fd' : '#fcd34d', fontSize: '1.3rem' }}>
                         {sortMode === 'journey' ? sortedRoomPlayers[2].points : sortedRoomPlayers[2].totalCollectedPoints} ن
@@ -562,7 +563,7 @@ export default function ParentPortal() {
                             {idx === 0 ? <span style={{fontSize:'1.5rem'}}>🥇</span> : idx === 1 ? <span style={{fontSize:'1.5rem'}}>🥈</span> : idx === 2 ? <span style={{fontSize:'1.5rem'}}>🥉</span> : `#${idx + 1}`}
                           </td>
                           <td style={{ padding: '1rem', fontWeight: 700, color: p.id === student.id ? '#38bdf8' : 'var(--text-primary)' }}>
-                            <span style={{ fontSize: '1.5rem', marginLeft: '0.5rem' }}>{p.avatar}</span> {p.name}
+                            <AvatarDisplay avatar={p.avatar} size="1.5rem" style={{ marginLeft: '0.5rem' }} /> {p.name}
                             {p.id === student.id && <span style={{ marginRight: '0.5rem', fontSize: '0.8rem', color: 'var(--gold)' }}>(طالبك)</span>}
                           </td>
                           <td style={{ padding: '1rem', color: '#93c5fd', fontWeight: sortMode === 'journey' ? 900 : 700 }}>{p.points}</td>

@@ -1,3 +1,4 @@
+import AvatarDisplay from './AvatarDisplay';
 import React, { useState, useEffect } from 'react';
 import { 
   getRooms, saveRoom, deleteRoom, archiveRoom,
@@ -553,7 +554,7 @@ export default function AdminPanel({ onDataChange }) {
                         const portalUrl = `${window.location.origin}${window.location.pathname}?parentCode=${player.parentCode}`;
                         return (
                         <tr key={player.id} style={{ borderBottom: '1px solid var(--border-color)', opacity: player.parentPortalEnabled === false ? 0.6 : 1 }}>
-                          <td style={{ padding: '0.75rem', fontSize: '1.25rem' }}>{player.avatar}</td>
+                          <td style={{ padding: '0.75rem', textAlign: 'center' }}><AvatarDisplay avatar={player.avatar} size="1.5rem" /></td>
                           <td style={{ padding: '0.75rem', fontWeight: 700 }}>
                             <span style={{ display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: player.color, marginLeft: '0.5rem' }} />
                             {player.name}

@@ -1,3 +1,4 @@
+import AvatarDisplay from './AvatarDisplay';
 import React, { useState, useEffect } from 'react';
 import { getRooms, getAllPlayers } from '../db/database';
 
@@ -96,7 +97,7 @@ export default function LeaderboardView({ onBack }) {
           {/* Second Place */}
           <div className="glass-panel podium-card" style={{ borderTop: '4px solid #94a3b8' }}>
             <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🥈</div>
-            <div style={{ fontSize: '2rem' }}>{sortedPlayers[1].avatar}</div>
+            <div><AvatarDisplay avatar={sortedPlayers[1].avatar} size="2.5rem" /></div>
             <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: '0.5rem 0', color: 'var(--text-primary)' }}>{sortedPlayers[1].name}</h3>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>{getRoomName(sortedPlayers[1].roomId)}</div>
             <div style={{ fontWeight: 800, color: sortMode === 'journey' ? '#93c5fd' : '#fcd34d', fontSize: '1.3rem' }}>
@@ -107,7 +108,7 @@ export default function LeaderboardView({ onBack }) {
           {/* First Place */}
           <div className="glass-panel podium-card first-place">
             <div style={{ fontSize: '3rem', marginBottom: '0.5rem', animation: 'bounce 2s infinite' }}>🥇</div>
-            <div style={{ fontSize: '2.5rem' }}>{sortedPlayers[0].avatar}</div>
+            <div><AvatarDisplay avatar={sortedPlayers[0].avatar} size="3rem" /></div>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 900, margin: '0.5rem 0', color: 'var(--gold)' }}>{sortedPlayers[0].name}</h3>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>{getRoomName(sortedPlayers[0].roomId)}</div>
             <div style={{ fontWeight: 900, color: sortMode === 'journey' ? '#93c5fd' : '#fcd34d', fontSize: '1.5rem' }}>
@@ -118,7 +119,7 @@ export default function LeaderboardView({ onBack }) {
           {/* Third Place */}
           <div className="glass-panel podium-card" style={{ borderTop: '4px solid #b45309' }}>
             <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🥉</div>
-            <div style={{ fontSize: '2rem' }}>{sortedPlayers[2].avatar}</div>
+            <div><AvatarDisplay avatar={sortedPlayers[2].avatar} size="2.5rem" /></div>
             <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: '0.5rem 0', color: 'var(--text-primary)' }}>{sortedPlayers[2].name}</h3>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>{getRoomName(sortedPlayers[2].roomId)}</div>
             <div style={{ fontWeight: 800, color: sortMode === 'journey' ? '#93c5fd' : '#fcd34d', fontSize: '1.3rem' }}>
@@ -159,7 +160,7 @@ export default function LeaderboardView({ onBack }) {
                   </td>
                   <td style={{ padding: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <span style={{ fontSize: '1.5rem' }}>{player.avatar}</span>
+                      <AvatarDisplay avatar={player.avatar} size="1.5rem" />
                       <strong style={{ fontSize: '1.1rem', color: isTop3 ? 'var(--gold)' : 'var(--text-primary)' }}>{player.name}</strong>
                     </div>
                   </td>

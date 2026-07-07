@@ -1,3 +1,4 @@
+import AvatarDisplay from './components/AvatarDisplay';
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate, useParams } from 'react-router-dom';
 import { 
@@ -582,7 +583,7 @@ export default function App() {
                             }}
                           >
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <span style={{ fontSize: '1.2rem' }}>{p.avatar}</span>
+                              <AvatarDisplay avatar={p.avatar} size="1.2rem" />
                               <span style={{ 
                                 display: 'inline-block', 
                                 width: '10px', 

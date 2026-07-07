@@ -1,3 +1,4 @@
+import AvatarDisplay from './AvatarDisplay';
 import React, { useMemo, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { generatePathCoordinates } from '../utils/helpers';
@@ -464,7 +465,7 @@ export default function Board({
                   fontSize={11 * scaleFactor}
                   fontWeight="900"
                 >
-                  {player.avatar || player.name.charAt(0)}
+                  <AvatarDisplay avatar={player.avatar || player.name.charAt(0)} size="1em" />
                 </text>
               </g>
             </g>
@@ -567,7 +568,7 @@ export default function Board({
               flexShrink: 0, flexWrap: 'wrap'
             }} className="fullscreen-topbar">
               <button onClick={() => setIsFullscreen(false)} className="btn btn-danger" style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem' }}>❌</button>
-              {activePlayer && <span style={{ color: 'var(--gold)', fontWeight: 800, fontSize: '0.9rem' }}>{activePlayer.avatar} {activePlayer.name}</span>}
+              {activePlayer && <span style={{ color: 'var(--gold)', fontWeight: 800, fontSize: '0.9rem' }}><div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}><AvatarDisplay avatar={activePlayer.avatar} size="1.2rem" /> <span>{activePlayer.name}</span></div></span>}
               <div style={{ display: 'flex', gap: '0.4rem', flex: 1, justifyContent: 'flex-end' }}>
                 {['تجويد', 'حفظ', 'متابعة تربوية'].map((tab) => (
                   <button key={tab} onClick={() => { setFullscreenTab(tab); setIsDrawerOpen(true); }} className="btn" style={{
@@ -668,7 +669,7 @@ export default function Board({
                         border: `1px solid ${isSelected ? 'var(--primary)' : 'rgba(255,255,255,0.03)'}`, color: isSelected ? '#fff' : 'var(--text-secondary)',
                         padding: '0.5rem 0.6rem', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', minHeight: 'auto'
                       }}>
-                        <span style={{ fontWeight: 800 }}>{p.rank}. {p.avatar} {p.name}</span>
+                        <span style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>{p.rank}. <AvatarDisplay avatar={p.avatar} size="1.2rem" /> {p.name}</span>
                         <span style={{ color: 'var(--gold)', fontSize: '0.8rem' }}>{p.points}</span>
                       </button>
                     );

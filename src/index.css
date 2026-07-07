@@ -404,17 +404,18 @@ html, body {
   /* Force landscape orientation for map wrapper when in portrait on mobile */
   @media (orientation: portrait) {
     .force-landscape-mobile {
-      transform: rotate(-90deg);
-      transform-origin: center center;
+      position: fixed !important;
+      top: 0 !important;
+      left: 100% !important;
       width: 100vh !important;
       height: 100vw !important;
-      position: fixed !important;
-      top: 50% !important;
-      left: 50% !important;
-      margin-top: -50vw !important;
-      margin-left: -50vh !important;
+      transform-origin: top left !important;
+      transform: rotate(90deg) !important;
       overflow: hidden !important;
       z-index: 9999 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      box-sizing: border-box !important;
     }
   }
 

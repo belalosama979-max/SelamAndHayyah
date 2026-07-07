@@ -1,3 +1,4 @@
+import AvatarDisplay from './AvatarDisplay';
 import React from 'react';
 import { getPlayers } from '../db/database';
 import { getRankEmoji, getRankBadgeClass, getRemainingPoints, formatDate } from '../utils/helpers';
@@ -146,7 +147,7 @@ export default function RoomSummary({ room, onEnter, onEdit, onArchive }) {
                       </td>
                       {/* اسم الطالب وأيقونته */}
                       <td style={{ padding: '0.6rem 0.5rem', fontWeight: 700 }}>
-                        <span style={{ fontSize: '1.15rem', marginLeft: '0.35rem' }}>{player.avatar || '⭐'}</span>
+                        <AvatarDisplay avatar={player.avatar || '⭐'} size="1.15rem" style={{ marginLeft: '0.35rem' }} />
                         {player.name}
                       </td>
                       {/* نقاط الرحلة والمشتريات */}
