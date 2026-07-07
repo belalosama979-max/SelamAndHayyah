@@ -30,7 +30,7 @@ export default function App() {
   // تهيئة قاعدة البيانات عند تشغيل التطبيق لأول مرة وتطبيق المظهر
   useEffect(() => {
     initDatabase();
-    import('../db/database').then(db => {
+    import('./db/database').then(db => {
       db.startFirebaseSync();
     });
     setRooms(getRooms());
