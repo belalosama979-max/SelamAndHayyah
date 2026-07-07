@@ -503,7 +503,7 @@ export default function Board({
           </p>
         </div>
         
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <button 
             onClick={() => setIsFullscreen(true)}
             className="btn btn-gold"
