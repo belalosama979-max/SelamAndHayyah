@@ -232,7 +232,7 @@ export default function Board({
         borderRadius: isFullscreen ? '0' : 'var(--radius-md)',
         boxShadow: 'inset 0 0 40px rgba(0, 0, 0, 0.8)',
         maxHeight: isFullscreen ? 'none' : '75vh',
-        maxWidth: isFullscreen ? '100vw' : '100%',
+        maxWidth: isFullscreen ? 'none' : '100%',
         minWidth: isFullscreen ? 'auto' : '0',
         margin: '0 auto',
         flex: isFullscreen ? 1 : 'none'
