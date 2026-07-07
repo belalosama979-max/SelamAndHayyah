@@ -168,7 +168,7 @@ export default function Board({
       else if (card.category === 'متابعة تربوية') baseColor = 'var(--gold)';
       else baseColor = 'var(--bg-tertiary)';
     }
-    let border = '1px solid rgba(255,255,255,0.1)';
+    let border = '1px solid var(--border-medium)';
     let boxShadow = '0 6px 12px rgba(0,0,0,0.2)';
     
     if (isBehaviorOrInteraction) {
@@ -242,7 +242,7 @@ export default function Board({
       <path
         d={`M ${pathCoordinates.map(p => `${p.x} ${p.y}`).join(' L ')}`}
         fill="none"
-        stroke="rgba(31, 41, 55, 0.45)"
+        stroke="var(--text-muted)"
         strokeWidth={32 * scaleFactor}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -276,7 +276,7 @@ export default function Board({
           />
           <line 
             x1={evt.x1} y1={evt.y1} x2={evt.x2} y2={evt.y2} 
-            stroke="#fff" strokeWidth="4" strokeDasharray="2,12" strokeLinecap="round"
+            stroke="var(--text-primary)" strokeWidth="4" strokeDasharray="2,12" strokeLinecap="round"
           />
         </g>
       ))}
@@ -317,9 +317,9 @@ export default function Board({
               strokeDasharray="4, 12"
             />
             <circle cx={evt.x1} cy={evt.y1} r="9" fill="#991b1b" stroke="#dc2626" strokeWidth="2" />
-            <circle cx={evt.x1 - 3} cy={evt.y1 - 2} r="2" fill="#fff" />
+            <circle cx={evt.x1 - 3} cy={evt.y1 - 2} r="2" fill="var(--text-primary)" />
             <circle cx={evt.x1 - 3} cy={evt.y1 - 2} r="0.8" fill="#000" />
-            <circle cx={evt.x1 + 3} cy={evt.y1 - 2} r="2" fill="#fff" />
+            <circle cx={evt.x1 + 3} cy={evt.y1 - 2} r="2" fill="var(--text-primary)" />
             <circle cx={evt.x1 + 3} cy={evt.y1 - 2} r="0.8" fill="#000" />
             <line x1={evt.x1} y1={evt.y1 - 9} x2={evt.x1 - 3} y2={evt.y1 - 15} stroke="#ef4444" strokeWidth="2.5" />
             <line x1={evt.x1} y1={evt.y1 - 9} x2={evt.x1 + 3} y2={evt.y1 - 15} stroke="#ef4444" strokeWidth="2.5" />
@@ -339,7 +339,7 @@ export default function Board({
               cy={node.y}
               r={(isFinishedCell ? 28 : 17) * scaleFactor}
               fill={isFinishedCell ? 'var(--gold)' : (node.number % 2 === 0 ? '#1f2937' : '#111827')}
-              stroke={isFinishedCell ? '#fff' : 'rgba(255,255,255,0.15)'}
+              stroke={isFinishedCell ? 'var(--text-primary)' : 'var(--border-medium)'}
               strokeWidth={isFinishedCell ? 3 : 1}
               style={{ filter: isFinishedCell ? 'drop-shadow(0 0 10px var(--gold))' : 'none' }}
             />
@@ -348,7 +348,7 @@ export default function Board({
               y={node.y}
               textAnchor="middle"
               dominantBaseline="central"
-              fill="#fff"
+              fill="var(--text-primary)"
               fontSize={(isFinishedCell ? 24 : 11) * scaleFactor}
               fontWeight="800"
             >
@@ -363,7 +363,7 @@ export default function Board({
                   width={130 * scaleFactor}
                   height={22 * scaleFactor}
                   rx="4"
-                  fill="rgba(11, 15, 25, 0.95)"
+                  fill="var(--bg-primary-transparent)"
                   stroke={isFinishedCell ? 'var(--gold)' : '#374151'}
                   strokeWidth="1"
                 />
@@ -372,7 +372,7 @@ export default function Board({
                   y={node.y + (hasLandmark.align === 'bottom' ? 33 * scaleFactor : -33 * scaleFactor)}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fill={isFinishedCell ? '#fff' : '#f9fafb'}
+                  fill={isFinishedCell ? 'var(--text-primary)' : 'var(--text-primary)'}
                   fontSize={9.5 * scaleFactor}
                   fontWeight="800"
                 >
@@ -433,7 +433,7 @@ export default function Board({
                   height={14 * scaleFactor} 
                   rx={3 * scaleFactor} 
                   fill={showYouAreHere && activePlayer && activePlayer.id === player.id ? "rgba(217, 119, 6, 0.95)" : "rgba(0, 0, 0, 0.75)"} 
-                  stroke={showYouAreHere && activePlayer && activePlayer.id === player.id ? "var(--gold)" : "rgba(255, 255, 255, 0.2)"}
+                  stroke={showYouAreHere && activePlayer && activePlayer.id === player.id ? "var(--gold)" : "var(--border-medium)"}
                   strokeWidth={showYouAreHere && activePlayer && activePlayer.id === player.id ? "1.5" : "0.5"}
                 />
                 <text
@@ -441,7 +441,7 @@ export default function Board({
                   y={-23 * scaleFactor}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fill="#fff"
+                  fill="var(--text-primary)"
                   fontSize={8.5 * scaleFactor}
                   fontWeight="800"
                 >
@@ -452,7 +452,7 @@ export default function Board({
                 <circle
                   r={13.5 * scaleFactor}
                   fill={player.color || '#3b82f6'}
-                  stroke="#fff"
+                  stroke="var(--text-primary)"
                   strokeWidth={1.5 * scaleFactor}
                   style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}
                 />
@@ -460,7 +460,7 @@ export default function Board({
                   dy={0.5 * scaleFactor}
                   textAnchor="middle"
                   dominantBaseline="central"
-                  fill="#fff"
+                  fill="var(--text-primary)"
                   fontSize={11 * scaleFactor}
                   fontWeight="900"
                 >
@@ -564,7 +564,7 @@ export default function Board({
           {cards.length > 0 && (
             <div style={{ 
               width: '180px', display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%', 
-              padding: '1rem 0.5rem', alignItems: 'stretch', backgroundColor: 'rgba(11,15,25,0.9)', 
+              padding: '1rem 0.5rem', alignItems: 'stretch', backgroundColor: 'var(--bg-primary-transparent)', 
               borderLeft: '1px solid var(--border-color)', position: 'relative' 
             }}>
               <button onClick={() => setIsFullscreen(false)} title="إغلاق العرض المسرحي" className="btn btn-danger" style={{ marginBottom: '2rem', padding: '0.75rem', fontSize: '1rem', fontWeight: 800 }}>❌ إغلاق المسرح</button>
@@ -639,7 +639,7 @@ export default function Board({
           {/* شريط اللاعبين قابل للطي على اليمين */}
           <div style={{ 
             width: isPlayersCollapsed ? '60px' : '300px', height: '100%', transition: 'width 0.3s ease',
-            backgroundColor: 'rgba(11,15,25,0.9)', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column'
+            backgroundColor: 'var(--bg-primary-transparent)', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column'
           }}>
             <button onClick={() => setIsPlayersCollapsed(!isPlayersCollapsed)} className="btn" style={{ margin: '0.5rem', justifyContent: 'center' }}>
               {isPlayersCollapsed ? '👥' : 'إخفاء اللاعبين ➡️'}
@@ -651,7 +651,7 @@ export default function Board({
                   return (
                     <button key={p.id} onClick={() => setActivePlayer(p)} className="btn" style={{
                       justifyContent: 'space-between', backgroundColor: isSelected ? 'var(--primary-light)' : 'transparent',
-                      border: `1px solid ${isSelected ? 'var(--primary)' : 'rgba(255,255,255,0.03)'}`, color: isSelected ? '#fff' : 'var(--text-secondary)',
+                      border: `1px solid ${isSelected ? 'var(--primary)' : 'var(--border-light)'}`, color: isSelected ? '#fff' : 'var(--text-secondary)',
                       padding: '0.75rem', borderRadius: 'var(--radius-md)', fontSize: '1rem'
                     }}>
                       <span style={{ fontWeight: 800 }}>{p.rank} - {p.avatar} {p.name}</span>

@@ -3,6 +3,7 @@
 
 :root {
   --bg-primary: #0b0f19;
+  --bg-primary-transparent: rgba(11, 15, 25, 0.95);
   --bg-secondary: #111827;
   --bg-tertiary: #1f2937;
   --bg-accent: #1e293b;
@@ -33,6 +34,11 @@
   --cyan: #06b6d4;            /* سماوي للأنشطة */
 
   --border-color: #374151;
+  --border-light: rgba(255, 255, 255, 0.05);
+  --border-medium: rgba(255, 255, 255, 0.15);
+  --bg-glass: rgba(255, 255, 255, 0.02);
+  --bg-glass-hover: rgba(255, 255, 255, 0.05);
+  --bg-glass-heavy: rgba(255, 255, 255, 0.1);
   --radius-sm: 0.375rem;
   --radius-md: 0.75rem;
   --radius-lg: 1.25rem;
@@ -47,6 +53,7 @@
 
 body.light-theme {
   --bg-primary: #f8fafc;
+  --bg-primary-transparent: rgba(248, 250, 252, 0.95);
   --bg-secondary: #ffffff;
   --bg-tertiary: #f1f5f9;
   --bg-accent: #e2e8f0;
@@ -56,24 +63,29 @@ body.light-theme {
   --text-muted: #64748b;
   
   --border-color: #cbd5e1;
+  --border-light: rgba(0, 0, 0, 0.05);
+  --border-medium: rgba(0, 0, 0, 0.15);
+  --bg-glass: rgba(0, 0, 0, 0.02);
+  --bg-glass-hover: rgba(0, 0, 0, 0.05);
+  --bg-glass-heavy: rgba(0, 0, 0, 0.1);
 }
 
 body.light-theme .glass-panel {
-  background: rgba(255, 255, 255, 0.85);
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  background: var(--bg-glass-hover);
+  border: 1px solid var(--border-light);
+  box-shadow: 0 10px 30px var(--border-light);
 }
 
 body.light-theme ::-webkit-scrollbar-track {
-  background: #f8fafc;
+  background: var(--bg-primary);
 }
 
 body.light-theme ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--border-color);
 }
 
 body.light-theme ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--text-muted);
 }
 
 /* التصفير العام وتجهيز الاتجاه العربي */
@@ -111,26 +123,26 @@ html, body {
 
 /* الكلاسات المساعدة والتأثيرات الزجاجية */
 .glass-panel {
-  background: rgba(17, 24, 39, 0.75);
+  background: var(--bg-glass);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-light);
 }
 
 .glow-primary {
-  box-shadow: 0 0 20px rgba(13, 148, 136, 0.25);
+  box-shadow: 0 0 20px var(--primary-light);
 }
 
 .glow-gold {
-  box-shadow: 0 0 20px rgba(217, 119, 6, 0.3);
+  box-shadow: 0 0 20px var(--gold-light);
 }
 
 .glow-danger {
-  box-shadow: 0 0 20px rgba(239, 68, 68, 0.25);
+  box-shadow: 0 0 20px var(--danger-light);
 }
 
 .glow-success {
-  box-shadow: 0 0 20px rgba(16, 185, 129, 0.25);
+  box-shadow: 0 0 20px var(--success-light);
 }
 
 /* أزرار مخصصة فخمة */
@@ -157,7 +169,7 @@ html, body {
 .btn-primary:hover {
   background: var(--primary-hover);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.3);
+  box-shadow: 0 4px 12px var(--primary-light);
 }
 
 .btn-gold {
@@ -167,7 +179,7 @@ html, body {
 .btn-gold:hover {
   background: var(--gold-hover);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.3);
+  box-shadow: 0 4px 12px var(--gold-light);
 }
 
 .btn-danger {
@@ -177,7 +189,7 @@ html, body {
 .btn-danger:hover {
   background: var(--danger-hover);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 4px 12px var(--danger-light);
 }
 
 .btn-success {
@@ -187,7 +199,7 @@ html, body {
 .btn-success:hover {
   background: var(--success-hover);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 12px var(--success-light);
 }
 
 .btn-secondary {
@@ -266,8 +278,8 @@ html, body {
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 15px rgba(217, 119, 6, 0.3); }
-  50% { box-shadow: 0 0 35px rgba(217, 119, 6, 0.7); }
+  0%, 100% { box-shadow: 0 0 15px var(--gold-light); }
+  50% { box-shadow: 0 0 35px var(--gold); }
 }
 
 .winner-pulse {
@@ -338,7 +350,7 @@ html, body {
   width: 100px;
   height: 150px;
   border-radius: var(--radius-md);
-  border: 2px solid rgba(255, 255, 255, 0.15);
+  border: 2px solid var(--border-medium);
   display: flex;
   flex-direction: column;
   justify-content: space-between;

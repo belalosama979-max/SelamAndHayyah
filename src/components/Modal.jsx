@@ -56,7 +56,7 @@ export default function Modal({ isOpen, onClose, title, children }) {
           maxWidth: '650px',
           maxHeight: '90vh',
           borderRadius: 'var(--radius-lg)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
+          border: '1px solid var(--border-light)',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
           display: 'flex',
           flexDirection: 'column',

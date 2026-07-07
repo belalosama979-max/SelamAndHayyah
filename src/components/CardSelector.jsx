@@ -90,7 +90,7 @@ export default function CardSelector({ cards = [], onApplyCard, activePlayer }) 
         </h3>
         <span style={{ 
           fontSize: '0.85rem', 
-          backgroundColor: 'rgba(255,255,255,0.06)', 
+          backgroundColor: 'var(--bg-glass-hover)', 
           padding: '0.2rem 0.5rem', 
           borderRadius: 'var(--radius-sm)' 
         }}>

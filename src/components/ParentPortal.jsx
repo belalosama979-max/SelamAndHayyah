@@ -177,8 +177,8 @@ export default function ParentPortal() {
       {/* Header */}
       <header style={{
         padding: '1rem 2rem',
-        backgroundColor: 'rgba(11, 15, 25, 0.95)',
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
+        backgroundColor: 'var(--bg-primary-transparent)',
+        borderBottom: '1px solid var(--border-light)',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -495,7 +495,7 @@ export default function ParentPortal() {
                     </thead>
                     <tbody>
                       {sortedRoomPlayers.map((p, idx) => (
-                        <tr key={p.id} style={{ backgroundColor: p.id === student.id ? 'rgba(59, 130, 246, 0.1)' : 'transparent', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <tr key={p.id} style={{ backgroundColor: p.id === student.id ? 'rgba(59, 130, 246, 0.1)' : 'transparent', borderBottom: '1px solid var(--border-light)' }}>
                           <td style={{ padding: '1rem' }}>
                             {idx === 0 ? '🥇 الأول' : idx === 1 ? '🥈 الثاني' : idx === 2 ? '🥉 الثالث' : idx + 1}
                           </td>

@@ -359,7 +359,7 @@ export default function AdminPanel({ onDataChange }) {
               gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
               gap: '1rem',
               alignItems: 'end',
-              backgroundColor: 'rgba(255,255,255,0.02)',
+              backgroundColor: 'var(--bg-glass)',
               padding: '1rem',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--border-color)'
@@ -488,8 +488,8 @@ export default function AdminPanel({ onDataChange }) {
                   display: 'grid',
                   gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
                   gap: '1rem',
-                  alignItems: 'end',
-                  backgroundColor: 'rgba(255,255,255,0.02)',
+                  alignItems: 'center',
+                  backgroundColor: 'var(--bg-glass)',
                   padding: '1rem',
                   borderRadius: 'var(--radius-md)',
                   border: '1px solid var(--border-color)'
@@ -628,7 +628,7 @@ export default function AdminPanel({ onDataChange }) {
               gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
               gap: '1rem',
               alignItems: 'end',
-              backgroundColor: 'rgba(255,255,255,0.02)',
+              backgroundColor: 'var(--bg-glass)',
               padding: '1rem',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--border-color)'
@@ -771,9 +771,9 @@ export default function AdminPanel({ onDataChange }) {
                       <span style={{ 
                         fontSize: '0.8rem', 
                         padding: '0.15rem 0.5rem', 
-                        borderRadius: 'var(--radius-sm)',
-                        backgroundColor: card.isEnabled ? 'var(--success-light)' : 'rgba(255,255,255,0.05)',
-                        color: card.isEnabled ? 'var(--success)' : 'var(--text-muted)'
+                        display: 'flex',
+                        backgroundColor: card.isEnabled ? 'var(--success-light)' : 'var(--bg-glass-hover)',
+                        border: `1px solid ${card.isEnabled ? 'var(--success)' : 'var(--border-light)'}`,
                       }}>
                         {card.isEnabled ? 'نشطة' : 'معطلة'}
                       </span>
@@ -801,7 +801,7 @@ export default function AdminPanel({ onDataChange }) {
               gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
               gap: '1rem',
               alignItems: 'end',
-              backgroundColor: 'rgba(255,255,255,0.02)',
+              backgroundColor: 'var(--bg-glass)',
               padding: '1rem',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--border-color)'
@@ -929,7 +929,7 @@ export default function AdminPanel({ onDataChange }) {
               display: 'flex',
               flexDirection: 'column',
               gap: '1rem',
-              backgroundColor: 'rgba(255,255,255,0.02)',
+              backgroundColor: 'var(--bg-glass)',
               padding: '1.5rem',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--border-color)',

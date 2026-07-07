@@ -549,7 +549,7 @@ export default function App() {
                             style={{
                               justifyContent: 'space-between',
                               backgroundColor: isSelected ? 'var(--primary-light)' : 'transparent',
-                              border: `1px solid ${isSelected ? 'var(--primary)' : 'rgba(255,255,255,0.04)'}`,
+                              border: `1px solid ${isSelected ? 'var(--primary)' : 'var(--border-light)'}`,
                               color: isSelected ? '#fff' : 'var(--text-secondary)',
                               padding: '0.5rem 0.75rem',
                               borderRadius: 'var(--radius-md)',
@@ -699,7 +699,7 @@ export default function App() {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(3, 7, 18, 0.95)',
+          backgroundColor: 'var(--bg-primary-transparent)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -745,7 +745,7 @@ export default function App() {
               flexDirection: 'column',
               alignItems: 'center',
               gap: '1.5rem',
-              backgroundColor: 'rgba(17, 24, 39, 0.9)',
+              backgroundColor: 'var(--bg-primary-transparent)',
               boxShadow: '0 0 50px rgba(217, 119, 6, 0.5)'
             }}
           >

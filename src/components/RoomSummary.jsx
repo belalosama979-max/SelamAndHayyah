@@ -23,7 +23,7 @@ export default function RoomSummary({ room, onEnter, onEdit, onArchive }) {
       display: 'flex',
       flexDirection: 'column',
       gap: '1.25rem',
-      backgroundColor: room.status === 'finished' ? 'rgba(31, 41, 55, 0.25)' : 'rgba(17, 24, 39, 0.6)',
+      backgroundColor: room.status === 'finished' ? 'rgba(31, 41, 55, 0.25)' : 'var(--bg-primary-transparent)',
       boxShadow: '0 8px 30px rgba(0, 0, 0, 0.2)',
       transition: 'all 0.3s'
     }}>
@@ -132,7 +132,7 @@ export default function RoomSummary({ room, onEnter, onEdit, onArchive }) {
                   const remaining = getRemainingPoints(player.points);
                   
                   return (
-                    <tr key={player.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                    <tr key={player.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
                       {/* الترتيب وميداليته */}
                       <td style={{ padding: '0.6rem 0.5rem' }}>
                         <span className={`badge ${getRankBadgeClass(player.rank)}`} style={{

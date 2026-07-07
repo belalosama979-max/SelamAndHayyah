@@ -62,8 +62,8 @@ export default function ActionLogs({ logs = [], onUndo }) {
                   gap: '0.25rem',
                   padding: '0.6rem 0.8rem',
                   borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'rgba(255,255,255,0.02)',
-                  border: '1px solid rgba(255,255,255,0.04)'
+                  backgroundColor: 'var(--bg-glass)',
+                  border: '1px solid var(--border-light)'
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

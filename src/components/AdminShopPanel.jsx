@@ -99,7 +99,7 @@ export default function AdminShopPanel({ onDataChange }) {
   return (
     <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)' }}>
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '1rem' }}>
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-medium)', paddingBottom: '1rem' }}>
         <button 
           onClick={() => setActiveTab('manageRewards')}
           className={`btn ${activeTab === 'manageRewards' ? 'btn-primary' : 'btn-secondary'}`}
@@ -185,7 +185,7 @@ export default function AdminShopPanel({ onDataChange }) {
               </thead>
               <tbody>
                 {rewards.map(r => (
-                  <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <tr key={r.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
                     <td style={{ padding: '0.75rem', fontWeight: 800 }}>
                       {r.isFeatured && <span style={{ color: 'var(--gold)', marginLeft: '0.5rem' }}>⭐</span>}
                       {r.name}
@@ -236,7 +236,7 @@ export default function AdminShopPanel({ onDataChange }) {
                 const dateStr = new Date(req.createdAt).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' });
                 
                 return (
-                  <tr key={req.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', backgroundColor: req.status === 'pending' ? 'rgba(245, 158, 11, 0.05)' : 'transparent' }}>
+                  <tr key={req.id} style={{ borderBottom: '1px solid var(--border-light)', backgroundColor: req.status === 'pending' ? 'rgba(245, 158, 11, 0.05)' : 'transparent' }}>
                     <td style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{dateStr}</td>
                     <td style={{ padding: '1rem' }}>
                       <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{req.playerName}</div>

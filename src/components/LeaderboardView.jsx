@@ -147,10 +147,10 @@ export default function LeaderboardView({ onBack }) {
               const isTop3 = index < 3;
               return (
                 <tr key={player.id} style={{ 
-                  borderBottom: '1px solid rgba(255,255,255,0.05)',
-                  backgroundColor: isTop3 ? 'rgba(255,255,255,0.02)' : 'transparent',
+                  borderBottom: '1px solid var(--border-light)',
+                  backgroundColor: isTop3 ? 'var(--bg-glass)' : 'transparent',
                   transition: 'background-color 0.2s',
-                  ':hover': { backgroundColor: 'rgba(255,255,255,0.05)' }
+                  ':hover': { backgroundColor: 'var(--border-light)' }
                 }}>
                   <td style={{ padding: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '40px' }}>
