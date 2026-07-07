@@ -1,5 +1,67 @@
 // إدارة قاعدة البيانات المحلية باستخدام LocalStorage
 import { DEFAULT_CARDS, DEFAULT_BOARD_EVENTS, DEFAULT_REWARDS } from './seedData';
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBjTcigTLFNcNxALsGU_Apv3Z7zvcA86Ys",
+  authDomain: "selamandhayyah.firebaseapp.com",
+  projectId: "selamandhayyah",
+  storageBucket: "selamandhayyah.firebasestorage.app",
+  messagingSenderId: "414616915163",
+  appId: "1:414616915163:web:82ea1bb96745cf5d4390fe",
+  measurementId: "G-L2LBC2TZC5"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let syncStarted = false;
+
+const setLocalItem = (key, value) => {
+  localStorage.setItem(key, value);
+  const now = Date.now();
+  localStorage.setItem(key + '_time', now.toString());
+  if (syncStarted) {
+    setDoc(doc(db, "data", key), { value, lastUpdated: now }).catch(console.error);
+  }
+};
+
+export const startFirebaseSync = () => {
+  if (syncStarted) return;
+  syncStarted = true;
+  
+  Object.values(KEYS).forEach(key => {
+    onSnapshot(doc(db, "data", key), (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        const localTime = Number(localStorage.getItem(key + '_time') || 0);
+        if (data.value && data.lastUpdated > localTime) {
+          localStorage.setItem(key, data.value);
+          localStorage.setItem(key + '_time', data.lastUpdated.toString());
+          window.dispatchEvent(new Event('db_sync'));
+        }
+      }
+    });
+  });
+};
+
+export const migrateDataToFirebase = async () => {
+  syncStarted = true;
+  try {
+    for (const key of Object.values(KEYS)) {
+      const val = localStorage.getItem(key);
+      if (val) {
+        await setDoc(doc(db, "data", key), { value: val, lastUpdated: Date.now() });
+      }
+    }
+    localStorage.setItem('cloud_migrated', 'true');
+    alert("تم رفع جميع البيانات إلى السحابة بنجاح! ☁️🎉");
+  } catch (e) {
+    console.error("Migration failed:", e);
+    alert("حدث خطأ أثناء الرفع للسحابة.");
+  }
+};
 
 // دالة توليد معرف عشوائي فريد
 export const generateId = () => {
@@ -40,7 +102,7 @@ export const ensureParentCodes = () => {
       return p;
     });
     if (updated) {
-      localStorage.setItem(KEYS.PLAYERS, JSON.stringify(newPlayers));
+      setLocalItem(KEYS.PLAYERS, JSON.stringify(newPlayers));
     }
   } catch (e) {
     console.error('Error ensuring parent codes:', e);
@@ -55,7 +117,7 @@ export const initDatabase = () => {
     cards = JSON.parse(localStorage.getItem(KEYS.CARDS) || '[]');
   } catch(e) {}
   if (!localStorage.getItem(KEYS.CARDS) || cards.length === 0) {
-    localStorage.setItem(KEYS.CARDS, JSON.stringify(DEFAULT_CARDS));
+    setLocalItem(KEYS.CARDS, JSON.stringify(DEFAULT_CARDS));
   }
 
   let events = [];
@@ -63,24 +125,24 @@ export const initDatabase = () => {
     events = JSON.parse(localStorage.getItem(KEYS.EVENTS) || '[]');
   } catch(e) {}
   if (!localStorage.getItem(KEYS.EVENTS) || events.length === 0) {
-    localStorage.setItem(KEYS.EVENTS, JSON.stringify(DEFAULT_BOARD_EVENTS));
+    setLocalItem(KEYS.EVENTS, JSON.stringify(DEFAULT_BOARD_EVENTS));
   }
 
   if (!localStorage.getItem(KEYS.ROOMS)) {
-    localStorage.setItem(KEYS.ROOMS, JSON.stringify([]));
+    setLocalItem(KEYS.ROOMS, JSON.stringify([]));
   } else {
     // تنظيف السجلات التالفة للغرف
     try {
       const rooms = JSON.parse(localStorage.getItem(KEYS.ROOMS) || '[]');
       const cleanedRooms = rooms.filter(r => r.id && r.id !== 'undefined');
       if (cleanedRooms.length !== rooms.length) {
-        localStorage.setItem(KEYS.ROOMS, JSON.stringify(cleanedRooms));
+        setLocalItem(KEYS.ROOMS, JSON.stringify(cleanedRooms));
       }
     } catch(e) {}
   }
 
   if (!localStorage.getItem(KEYS.PLAYERS)) {
-    localStorage.setItem(KEYS.PLAYERS, JSON.stringify([]));
+    setLocalItem(KEYS.PLAYERS, JSON.stringify([]));
   } else {
     // تنظيف السجلات التالفة للاعبين وتحديث الحقول الجديدة للطلاب الحاليين
     try {
@@ -114,34 +176,34 @@ export const initDatabase = () => {
         return p;
       });
       if (cleanedPlayers.length !== players.length || updated) {
-        localStorage.setItem(KEYS.PLAYERS, JSON.stringify(cleanedPlayers));
+        setLocalItem(KEYS.PLAYERS, JSON.stringify(cleanedPlayers));
       }
     } catch(e) {}
   }
 
   if (!localStorage.getItem(KEYS.LOGS)) {
-    localStorage.setItem(KEYS.LOGS, JSON.stringify([]));
+    setLocalItem(KEYS.LOGS, JSON.stringify([]));
   }
   
   if (!localStorage.getItem(KEYS.REWARDS)) {
-    localStorage.setItem(KEYS.REWARDS, JSON.stringify(DEFAULT_REWARDS));
+    setLocalItem(KEYS.REWARDS, JSON.stringify(DEFAULT_REWARDS));
   } else {
     // If rewards exist but are empty, seed them. Or force seeding new items if needed.
     const currentRewards = JSON.parse(localStorage.getItem(KEYS.REWARDS));
     if (currentRewards.length === 0) {
-      localStorage.setItem(KEYS.REWARDS, JSON.stringify(DEFAULT_REWARDS));
+      setLocalItem(KEYS.REWARDS, JSON.stringify(DEFAULT_REWARDS));
     } else {
       // Temporary check to update prices for existing items (so the user gets the updated shop)
       const hasOldPrices = currentRewards.some(r => r.name === 'كاميرا' && r.pointsCost !== 2000);
       const isMissingNewItems = !currentRewards.some(r => r.name === 'أبو صالح');
       if (hasOldPrices || isMissingNewItems) {
-        localStorage.setItem(KEYS.REWARDS, JSON.stringify(DEFAULT_REWARDS));
+        setLocalItem(KEYS.REWARDS, JSON.stringify(DEFAULT_REWARDS));
       }
     }
   }
   
   if (!localStorage.getItem(KEYS.PRIZE_REQUESTS)) {
-    localStorage.setItem(KEYS.PRIZE_REQUESTS, JSON.stringify([]));
+    setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify([]));
   }
 
   // --- One-time fix for Abdulrahman Totanji ---
@@ -167,7 +229,7 @@ export const initDatabase = () => {
 
       if (changed && targetPlayerId) {
         // Save fixed logs
-        localStorage.setItem(KEYS.LOGS, JSON.stringify(logs));
+        setLocalItem(KEYS.LOGS, JSON.stringify(logs));
 
         // Replay all logs for this player to rebuild their state
         const player = players.find(p => p.id === targetPlayerId);
@@ -216,7 +278,7 @@ export const initDatabase = () => {
           player.lastCardApplied = lastCardApplied;
           player.hasFinished = hasFinished;
           
-          localStorage.setItem(KEYS.PLAYERS, JSON.stringify(players));
+          setLocalItem(KEYS.PLAYERS, JSON.stringify(players));
         }
       }
     }
@@ -254,7 +316,7 @@ export const saveRoom = (room) => {
       ...roomData
     });
   }
-  localStorage.setItem(KEYS.ROOMS, JSON.stringify(rooms));
+  setLocalItem(KEYS.ROOMS, JSON.stringify(rooms));
   return rooms;
 };
 
@@ -262,17 +324,17 @@ export const deleteRoom = (roomId) => {
   // حذف الغرفة
   let rooms = getRooms();
   rooms = rooms.filter(r => r.id !== roomId);
-  localStorage.setItem(KEYS.ROOMS, JSON.stringify(rooms));
+  setLocalItem(KEYS.ROOMS, JSON.stringify(rooms));
 
   // حذف لاعبي الغرفة
   let players = getAllPlayers();
   players = players.filter(p => p.roomId !== roomId);
-  localStorage.setItem(KEYS.PLAYERS, JSON.stringify(players));
+  setLocalItem(KEYS.PLAYERS, JSON.stringify(players));
 
   // حذف سجلات الغرفة
   let logs = getAllLogs();
   logs = logs.filter(l => l.roomId !== roomId);
-  localStorage.setItem(KEYS.LOGS, JSON.stringify(logs));
+  setLocalItem(KEYS.LOGS, JSON.stringify(logs));
 
   return rooms;
 };
@@ -283,7 +345,7 @@ export const archiveRoom = (roomId) => {
   if (index >= 0) {
     rooms[index].status = rooms[index].status === 'finished' ? 'active' : 'finished';
     rooms[index].lastUsedAt = new Date().toISOString();
-    localStorage.setItem(KEYS.ROOMS, JSON.stringify(rooms));
+    setLocalItem(KEYS.ROOMS, JSON.stringify(rooms));
   }
   return rooms;
 };
@@ -345,7 +407,7 @@ export const savePlayer = (player) => {
     });
   }
   
-  localStorage.setItem(KEYS.PLAYERS, JSON.stringify(players));
+  setLocalItem(KEYS.PLAYERS, JSON.stringify(players));
   recalculateRanks(player.roomId);
   return getPlayers(player.roomId);
 };
@@ -353,7 +415,7 @@ export const savePlayer = (player) => {
 export const deletePlayer = (playerId, roomId) => {
   let players = getAllPlayers();
   players = players.filter(p => p.id !== playerId);
-  localStorage.setItem(KEYS.PLAYERS, JSON.stringify(players));
+  setLocalItem(KEYS.PLAYERS, JSON.stringify(players));
   recalculateRanks(roomId);
   return getPlayers(roomId);
 };
@@ -380,7 +442,7 @@ export const recalculateRanks = (roomId) => {
     return p;
   });
 
-  localStorage.setItem(KEYS.PLAYERS, JSON.stringify(updatedAllPlayers));
+  setLocalItem(KEYS.PLAYERS, JSON.stringify(updatedAllPlayers));
 };
 
 // --- عمليات السلالم والأفاعي (BoardEvents) ---
@@ -405,14 +467,14 @@ export const saveBoardEvent = (event) => {
       ...eventData
     });
   }
-  localStorage.setItem(KEYS.EVENTS, JSON.stringify(events));
+  setLocalItem(KEYS.EVENTS, JSON.stringify(events));
   return events;
 };
 
 export const deleteBoardEvent = (eventId) => {
   let events = getBoardEvents();
   events = events.filter(e => e.id !== eventId);
-  localStorage.setItem(KEYS.EVENTS, JSON.stringify(events));
+  setLocalItem(KEYS.EVENTS, JSON.stringify(events));
   return events;
 };
 
@@ -442,14 +504,14 @@ export const saveCard = (card) => {
       ...cardData
     });
   }
-  localStorage.setItem(KEYS.CARDS, JSON.stringify(cards));
+  setLocalItem(KEYS.CARDS, JSON.stringify(cards));
   return getCards();
 };
 
 export const deleteCard = (cardId) => {
   let cards = getCards();
   cards = cards.filter(c => c.id !== cardId);
-  localStorage.setItem(KEYS.CARDS, JSON.stringify(cards));
+  setLocalItem(KEYS.CARDS, JSON.stringify(cards));
   return getCards();
 };
 
@@ -493,14 +555,14 @@ export const saveReward = (reward) => {
       ...rewardData
     });
   }
-  localStorage.setItem(KEYS.REWARDS, JSON.stringify(rewards));
+  setLocalItem(KEYS.REWARDS, JSON.stringify(rewards));
   return getRewards();
 };
 
 export const deleteReward = (rewardId) => {
   let rewards = getRewards();
   rewards = rewards.filter(r => r.id !== rewardId);
-  localStorage.setItem(KEYS.REWARDS, JSON.stringify(rewards));
+  setLocalItem(KEYS.REWARDS, JSON.stringify(rewards));
   return getRewards();
 };
 
@@ -527,7 +589,7 @@ export const savePrizeRequest = (request) => {
       ...requestData
     });
   }
-  localStorage.setItem(KEYS.PRIZE_REQUESTS, JSON.stringify(requests));
+  setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify(requests));
   return getAllPrizeRequests();
 };
 
@@ -557,12 +619,12 @@ export const orderPrize = (playerId, rewardId) => {
   player.rewardPoints -= reward.pointsCost;
   player.totalSpent = (player.totalSpent || 0) + reward.pointsCost;
   player.updatedAt = new Date().toISOString();
-  localStorage.setItem(KEYS.PLAYERS, JSON.stringify(players));
+  setLocalItem(KEYS.PLAYERS, JSON.stringify(players));
   
   // خصم المخزون
   reward.remainingStock -= 1;
   reward.updatedAt = new Date().toISOString();
-  localStorage.setItem(KEYS.REWARDS, JSON.stringify(rewards));
+  setLocalItem(KEYS.REWARDS, JSON.stringify(rewards));
   
   // تسجيل الطلب وحفظ نسخة ثابتة من الجائزة
   const newRequest = {
@@ -594,13 +656,13 @@ export const updatePrizeRequestStatus = (requestId, newStatus) => {
     if (playerIndex >= 0) {
       players[playerIndex].rewardPoints += request.pointsUsed;
       players[playerIndex].totalSpent = Math.max(0, (players[playerIndex].totalSpent || 0) - request.pointsUsed);
-      localStorage.setItem(KEYS.PLAYERS, JSON.stringify(players));
+      setLocalItem(KEYS.PLAYERS, JSON.stringify(players));
     }
     
     const rewardIndex = rewards.findIndex(r => r.id === request.rewardId);
     if (rewardIndex >= 0) {
       rewards[rewardIndex].remainingStock += 1;
-      localStorage.setItem(KEYS.REWARDS, JSON.stringify(rewards));
+      setLocalItem(KEYS.REWARDS, JSON.stringify(rewards));
     }
   }
 
@@ -610,7 +672,7 @@ export const updatePrizeRequestStatus = (requestId, newStatus) => {
     request.deliveredAt = new Date().toISOString();
   }
   
-  localStorage.setItem(KEYS.PRIZE_REQUESTS, JSON.stringify(requests));
+  setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify(requests));
   return { success: true };
 };
 
@@ -710,8 +772,8 @@ export const applyCardToPlayer = (roomId, playerId, cardId, customValue = null) 
   player.totalCollectedPoints = Math.max(0, (player.totalCollectedPoints || 0) + pointsApplied);
 
   // تحديث البيانات في LocalStorage
-  localStorage.setItem(KEYS.PLAYERS, JSON.stringify(players));
-  localStorage.setItem(KEYS.ROOMS, JSON.stringify(rooms));
+  setLocalItem(KEYS.PLAYERS, JSON.stringify(players));
+  setLocalItem(KEYS.ROOMS, JSON.stringify(rooms));
   
   // إعادة حساب الترتيب ونسب التقدم للغرفة
   recalculateRanks(roomId);
@@ -728,11 +790,11 @@ export const applyCardToPlayer = (roomId, playerId, cardId, customValue = null) 
   };
   
   logs.push(newLog);
-  localStorage.setItem(KEYS.LOGS, JSON.stringify(logs));
+  setLocalItem(KEYS.LOGS, JSON.stringify(logs));
 
   // تحديث وقت آخر استخدام للغرفة
   room.lastUsedAt = new Date().toISOString();
-  localStorage.setItem(KEYS.ROOMS, JSON.stringify(rooms));
+  setLocalItem(KEYS.ROOMS, JSON.stringify(rooms));
 
   return {
     success: true,
@@ -753,7 +815,7 @@ export const undoLastLog = (roomId) => {
   
   const allLogs = getAllLogs();
   const remainingLogs = allLogs.filter(l => l.id !== lastLog.id);
-  localStorage.setItem(KEYS.LOGS, JSON.stringify(remainingLogs));
+  setLocalItem(KEYS.LOGS, JSON.stringify(remainingLogs));
 
   // لإرجاع الحالة السابقة بدقة، سنقوم بإعادة بناء حالة نقاط اللاعبين وموقعهم من خلال إعادة تطبيق السجلات المتبقية من البداية للاعب المعني!
   // هذه الطريقة (Event Sourcing) هي الأكثر أماناً لمنع تعارض الحسابات.
@@ -814,7 +876,7 @@ export const undoLastLog = (roomId) => {
     player.hasFinished = hasFinished;
     player.updatedAt = new Date().toISOString();
 
-    localStorage.setItem(KEYS.PLAYERS, JSON.stringify(players));
+    setLocalItem(KEYS.PLAYERS, JSON.stringify(players));
 
     // إذا تم حذف فوز اللاعب، نحدث الغرفة أيضاً
     const rooms = getRooms();
@@ -822,7 +884,7 @@ export const undoLastLog = (roomId) => {
     if (room && room.winnerId === player.id && !hasFinished) {
       room.winnerId = null;
       room.status = 'active';
-      localStorage.setItem(KEYS.ROOMS, JSON.stringify(rooms));
+      setLocalItem(KEYS.ROOMS, JSON.stringify(rooms));
     }
 
     recalculateRanks(roomId);
@@ -859,13 +921,13 @@ export const importData = (jsonData) => {
       return { success: false, message: "تنسيق الملف غير صالح، بعض الجداول الأساسية مفقودة" };
     }
 
-    localStorage.setItem(KEYS.ROOMS, JSON.stringify(data.rooms));
-    localStorage.setItem(KEYS.PLAYERS, JSON.stringify(data.players));
-    localStorage.setItem(KEYS.CARDS, JSON.stringify(data.cards));
-    localStorage.setItem(KEYS.EVENTS, JSON.stringify(data.events));
-    localStorage.setItem(KEYS.LOGS, JSON.stringify(data.logs));
-    if (data.rewards) localStorage.setItem(KEYS.REWARDS, JSON.stringify(data.rewards));
-    if (data.prizeRequests) localStorage.setItem(KEYS.PRIZE_REQUESTS, JSON.stringify(data.prizeRequests));
+    setLocalItem(KEYS.ROOMS, JSON.stringify(data.rooms));
+    setLocalItem(KEYS.PLAYERS, JSON.stringify(data.players));
+    setLocalItem(KEYS.CARDS, JSON.stringify(data.cards));
+    setLocalItem(KEYS.EVENTS, JSON.stringify(data.events));
+    setLocalItem(KEYS.LOGS, JSON.stringify(data.logs));
+    if (data.rewards) setLocalItem(KEYS.REWARDS, JSON.stringify(data.rewards));
+    if (data.prizeRequests) setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify(data.prizeRequests));
 
     // إعادة ضبط الرتب للجميع للاطمئنان
     data.rooms.forEach(room => {

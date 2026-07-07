@@ -29,6 +29,8 @@ export default function AdminShopPanel({ onDataChange }) {
 
   useEffect(() => {
     loadData();
+    window.addEventListener('db_sync', loadData);
+    return () => window.removeEventListener('db_sync', loadData);
   }, []);
 
   const handleRewardSubmit = (e) => {

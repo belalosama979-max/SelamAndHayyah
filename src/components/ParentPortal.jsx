@@ -3,10 +3,25 @@ import { getAllPlayers, getRooms, getAllLogs, getBoardEvents, getAllPrizeRequest
 import Board from './Board';
 
 export default function ParentPortal() {
-  const [currentView, setCurrentView] = useState('landing'); // landing, student
-  const [studentTab, setStudentTab] = useState('dashboard'); // dashboard, shop, leaderboard
-  const [student, setStudent] = useState(null);
+  const [currentView, setCurrentView] = useState(sessionStorage.getItem('aqsa_parent_currentView') || 'landing'); // landing, student
+  const [studentTab, setStudentTab] = useState(sessionStorage.getItem('aqsa_parent_studentTab') || 'dashboard'); // dashboard, shop, leaderboard, profile
+  const [student, setStudent] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('aqsa_parent_student');
+      return saved ? JSON.parse(saved) : null;
+    } catch(e) { return null; }
+  });
   const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    sessionStorage.setItem('aqsa_parent_currentView', currentView);
+    sessionStorage.setItem('aqsa_parent_studentTab', studentTab);
+    if (student) {
+      sessionStorage.setItem('aqsa_parent_student', JSON.stringify(student));
+    } else {
+      sessionStorage.removeItem('aqsa_parent_student');
+    }
+  }, [currentView, studentTab, student]);
 
   // Login State
   const [selectedRoomId, setSelectedRoomId] = useState('');
@@ -21,7 +36,7 @@ export default function ParentPortal() {
   const [allPrizeRequests, setAllPrizeRequests] = useState([]);
   const [rewards, setRewards] = useState([]);
 
-  useEffect(() => {
+  const loadData = () => {
     // Load fresh data
     const players = getAllPlayers();
     setAllPlayers(players);
@@ -30,6 +45,19 @@ export default function ParentPortal() {
     setAllEvents(getBoardEvents());
     setAllPrizeRequests(getAllPrizeRequests());
     setRewards(getRewards());
+
+    // Refresh student data if logged in
+    setStudent(prev => {
+      if (!prev) return null;
+      const fresh = players.find(p => p.id === prev.id);
+      return fresh || prev;
+    });
+  };
+
+  useEffect(() => {
+    loadData();
+    window.addEventListener('db_sync', loadData);
+    return () => window.removeEventListener('db_sync', loadData);
   }, []);
 
   const onLoginSubmit = (e) => {
@@ -621,6 +649,50 @@ function ProfileTab({ student, setStudent }) {
 
   const avatarsList = ['🦅', '🦁', '🐅', '🐎', '🐫', '🐬', '🦈', '🚀', '⭐', '🔥', '⚡', '🏹', '⚔️', '🛡️', '👑', '🎓', '🎯', '💡', '🤖', '👾'];
 
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    if (!file.type.startsWith('image/')) {
+      alert('الرجاء اختيار صورة صالحة.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 200;
+        const MAX_HEIGHT = 200;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        setAvatar(dataUrl);
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSave = (e) => {
     e.preventDefault();
     if (!name.trim()) return;
@@ -651,26 +723,58 @@ function ProfileTab({ student, setStudent }) {
       
       <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         <div>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>اختر الأفاتار الخاص بك:</label>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', padding: '1rem', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
-            {avatarsList.map(a => (
-              <button
-                key={a}
-                type="button"
-                onClick={() => setAvatar(a)}
-                style={{
-                  fontSize: '1.5rem',
-                  padding: '0.5rem',
-                  border: avatar === a ? '2px solid var(--primary)' : '2px solid transparent',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: avatar === a ? 'rgba(13, 148, 136, 0.2)' : 'transparent',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-              >
-                {a}
-              </button>
-            ))}
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>اختر الأفاتار أو ارفع صورتك:</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1rem', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
+            
+            {/* عرض الصورة الحالية */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ 
+                width: '80px', height: '80px', 
+                borderRadius: '50%', 
+                backgroundColor: 'var(--bg-accent)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '3rem',
+                overflow: 'hidden',
+                border: '2px solid var(--primary)'
+              }}>
+                {avatar && avatar.startsWith('data:image') ? (
+                  <img src={avatar} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  avatar || '👤'
+                )}
+              </div>
+              
+              <div>
+                <label className="btn btn-secondary" style={{ display: 'inline-block', cursor: 'pointer', fontSize: '0.9rem', padding: '0.5rem 1rem' }}>
+                  📸 رفع صورة من الجهاز
+                  <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} />
+                </label>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>سيتم ضغط الصورة تلقائياً لتسريع الموقع.</p>
+              </div>
+            </div>
+
+            <hr style={{ borderColor: 'var(--border-color)', margin: '0.5rem 0' }} />
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              {avatarsList.map(a => (
+                <button
+                  key={a}
+                  type="button"
+                  onClick={() => setAvatar(a)}
+                  style={{
+                    fontSize: '1.5rem',
+                    padding: '0.5rem',
+                    border: avatar === a ? '2px solid var(--primary)' : '2px solid transparent',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: avatar === a ? 'rgba(13, 148, 136, 0.2)' : 'transparent',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {a}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

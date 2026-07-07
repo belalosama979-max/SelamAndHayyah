@@ -30,6 +30,9 @@ export default function App() {
   // تهيئة قاعدة البيانات عند تشغيل التطبيق لأول مرة وتطبيق المظهر
   useEffect(() => {
     initDatabase();
+    import('../db/database').then(db => {
+      db.startFirebaseSync();
+    });
     setRooms(getRooms());
     setCards(getCards());
     setBoardEvents(getBoardEvents());
@@ -40,6 +43,20 @@ export default function App() {
     if (pCode) {
       setInitialParentCode(pCode);
       setCurrentScreen('parent-portal');
+    } else {
+      // Restore room state if available
+      const savedRoomId = sessionStorage.getItem('aqsa_selectedRoomId');
+      if (savedRoomId) {
+        const allRooms = getRooms();
+        const room = allRooms.find(r => r.id === savedRoomId);
+        if (room) {
+          setActiveRoom(room);
+          setActivePlayers(getPlayers(savedRoomId));
+          setActiveLogs(getLogs(savedRoomId));
+        } else {
+          sessionStorage.removeItem('aqsa_selectedRoomId');
+        }
+      }
     }
   }, []);
 
@@ -53,17 +70,33 @@ export default function App() {
   }, [theme]);
 
   // حالات التنقل والبيانات
-  const [currentScreen, setCurrentScreen] = useState('dashboard'); // 'dashboard' | 'game' | 'admin'
+  const [currentScreen, setCurrentScreen] = useState(sessionStorage.getItem('aqsa_currentScreen') || 'dashboard'); // 'dashboard' | 'game' | 'admin' | 'parent-portal'
   const [rooms, setRooms] = useState([]);
   const [cards, setCards] = useState([]);
   const [boardEvents, setBoardEvents] = useState([]);
   
   // الغرفة المحددة للعب
-  const [selectedRoomId, setSelectedRoomId] = useState('');
+  const [selectedRoomId, setSelectedRoomId] = useState(sessionStorage.getItem('aqsa_selectedRoomId') || '');
   const [activeRoom, setActiveRoom] = useState(null);
   const [activePlayers, setActivePlayers] = useState([]);
-  const [activePlayer, setActivePlayer] = useState(null);
+  const [activePlayer, setActivePlayer] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('aqsa_activePlayer');
+      return saved ? JSON.parse(saved) : null;
+    } catch(e) { return null; }
+  });
   const [activeLogs, setActiveLogs] = useState([]);
+
+  // حفظ الحالة في الجلسة عند كل تغيير
+  useEffect(() => {
+    sessionStorage.setItem('aqsa_currentScreen', currentScreen);
+    sessionStorage.setItem('aqsa_selectedRoomId', selectedRoomId);
+    if (activePlayer) {
+      sessionStorage.setItem('aqsa_activePlayer', JSON.stringify(activePlayer));
+    } else {
+      sessionStorage.removeItem('aqsa_activePlayer');
+    }
+  }, [currentScreen, selectedRoomId, activePlayer]);
 
   // حالات الرسوم المتحركة
   const [animatingPlayerId, setAnimatingPlayerId] = useState(null);
@@ -78,7 +111,7 @@ export default function App() {
   const [roomModalData, setRoomModalData] = useState({ id: '', name: '', maxPlayers: 10, createdBy: '' });
   const [isEditingRoom, setIsEditingRoom] = useState(false);
 
-  // تحديث القوائم العامة عند حدوث تعديل خارجي (من لوحة الإدارة مثلاً)
+  // تحديث القوائم العامة عند حدوث تعديل خارجي (من لوحة الإدارة مثلاً أو المزامنة السحابية)
   const handleDataChange = () => {
     setRooms(getRooms());
     setCards(getCards());
@@ -105,6 +138,11 @@ export default function App() {
       }
     }
   };
+
+  useEffect(() => {
+    window.addEventListener('db_sync', handleDataChange);
+    return () => window.removeEventListener('db_sync', handleDataChange);
+  }, [selectedRoomId, activePlayer]);
 
   // الدخول لغرفة اللعب
   const handleEnterRoom = (roomId) => {

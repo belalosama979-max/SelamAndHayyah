@@ -6,7 +6,7 @@ export default function LeaderboardView({ onBack }) {
   const [players, setPlayers] = useState([]);
   const [sortMode, setSortMode] = useState('journey'); // 'journey' | 'season'
 
-  useEffect(() => {
+  const loadData = () => {
     const allRooms = getRooms();
     const allPlayers = getAllPlayers();
     
@@ -15,6 +15,12 @@ export default function LeaderboardView({ onBack }) {
     
     setRooms(allRooms);
     setPlayers(validPlayers);
+  };
+
+  useEffect(() => {
+    loadData();
+    window.addEventListener('db_sync', loadData);
+    return () => window.removeEventListener('db_sync', loadData);
   }, []);
 
   // ترتيب اللاعبين بناءً على وضع الترتيب المختار

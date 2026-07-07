@@ -8,10 +8,19 @@ export default function ShopView({ onBack }) {
   const [selectedPlayerId, setSelectedPlayerId] = useState('');
   const [rewards, setRewards] = useState([]);
 
-  useEffect(() => {
+  const loadData = () => {
     setRooms(getRooms());
     setRewards(getRewards());
-  }, []);
+    if (selectedRoomId) {
+      setPlayers(getPlayers(selectedRoomId));
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+    window.addEventListener('db_sync', loadData);
+    return () => window.removeEventListener('db_sync', loadData);
+  }, [selectedRoomId]);
 
   useEffect(() => {
     if (selectedRoomId) {
