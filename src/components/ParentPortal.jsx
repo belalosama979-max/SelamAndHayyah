@@ -292,8 +292,8 @@ export default function ParentPortal() {
             
             {/* بطاقة الطالب */}
             <div className="glass-panel" style={{ padding: '2rem', display: 'flex', flexWrap: 'wrap', gap: '2rem', alignItems: 'center', borderTop: '4px solid var(--primary)' }}>
-              <div style={{ fontSize: '4rem', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))' }}>
-                {student.avatar}
+              <div style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))' }}>
+                <AvatarDisplay avatar={student.avatar} size="4rem" />
               </div>
               <div style={{ flex: 1 }}>
                 <h2 style={{ fontSize: '2rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>{student.name}</h2>
