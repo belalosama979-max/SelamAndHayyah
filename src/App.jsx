@@ -498,8 +498,9 @@ export default function App() {
 
         {/* 2. شاشة اللعب الرئيسية لغرفة معينة */}
         <Route path="/game/:roomId" element={
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {/* رأس لوحة اللعب */}
+          activeRoom ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {/* رأس لوحة اللعب */}
             <div className="glass-panel" style={{
               padding: '1rem 1.5rem',
               borderRadius: 'var(--radius-lg)',
@@ -625,6 +626,11 @@ export default function App() {
               </div>
             </div>
           </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+              جاري تحميل الغرفة...
+            </div>
+          )
         } />
         
         {/* توجيه افتراضي */}
