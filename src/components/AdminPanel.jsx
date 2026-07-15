@@ -544,6 +544,7 @@ export default function AdminPanel({ onDataChange }) {
                       <th style={{ padding: '0.75rem' }}>الرمز</th>
                       <th style={{ padding: '0.75rem' }}>اسم الطالب</th>
                       <th style={{ padding: '0.75rem' }}>النقاط</th>
+                      <th style={{ padding: '0.75rem' }}>🔑 كلمة المرور</th>
                       <th style={{ padding: '0.75rem' }}>بوابة الولي</th>
                       <th style={{ padding: '0.75rem', textAlign: 'center' }}>العمليات</th>
                     </tr>
@@ -560,6 +561,21 @@ export default function AdminPanel({ onDataChange }) {
                             {player.name}
                           </td>
                           <td style={{ padding: '0.75rem' }}>{player.points} نقطة</td>
+                          <td style={{ padding: '0.75rem' }}>
+                            <span style={{
+                              fontFamily: 'monospace',
+                              fontSize: '0.9rem',
+                              backgroundColor: 'rgba(13, 148, 136, 0.15)',
+                              border: '1px solid rgba(13, 148, 136, 0.4)',
+                              borderRadius: '6px',
+                              padding: '0.2rem 0.6rem',
+                              color: '#2dd4bf',
+                              fontWeight: 'bold',
+                              letterSpacing: '1px'
+                            }}>
+                              {player.password || (player.name.split(' ')[0] + '123')}
+                            </span>
+                          </td>
                           <td style={{ padding: '0.75rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                               <span style={{ fontFamily: 'monospace', fontWeight: 'bold', letterSpacing: '1px' }}>{player.parentCode}</span>
@@ -593,7 +609,7 @@ export default function AdminPanel({ onDataChange }) {
                       })
                     ) : (
                       <tr>
-                        <td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>لا يوجد طلاب مضافين لهذه النسخة بعد.</td>
+                        <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>لا يوجد طلاب مضافين لهذه النسخة بعد.</td>
                       </tr>
                     )}
                   </tbody>
