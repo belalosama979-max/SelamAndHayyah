@@ -4,7 +4,8 @@ import { Routes, Route, useNavigate, useLocation, Navigate, useParams } from 're
 import { 
   getRooms, saveRoom, archiveRoom, deleteRoom,
   getPlayers, savePlayer,
-  getCards, getBoardEvents, getLogs, applyCardToPlayer, undoLastLog, initDatabase
+  getCards, getBoardEvents, getLogs, applyCardToPlayer, undoLastLog, initDatabase,
+  recordPlayerVisit
 } from './db/database';
 import RoomSummary from './components/RoomSummary';
 import Board from './components/Board';
@@ -209,6 +210,9 @@ export default function App() {
   // تطبيق بطاقة حركة على طالب
   const handleApplyCard = (cardId, customValue) => {
     if (!selectedRoomId || !activePlayer) return;
+
+    // تسجيل آخر زيارة للطالب عند تطبيق البطاقة
+    recordPlayerVisit(activePlayer.id);
 
     const result = applyCardToPlayer(selectedRoomId, activePlayer.id, cardId, customValue);
     

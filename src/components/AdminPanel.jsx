@@ -2,7 +2,7 @@ import AvatarDisplay from './AvatarDisplay';
 import React, { useState, useEffect } from 'react';
 import { 
   getRooms, saveRoom, deleteRoom, archiveRoom,
-  getPlayers, savePlayer, deletePlayer,
+  getPlayers, getAllPlayers, savePlayer, deletePlayer,
   getCards, saveCard, deleteCard,
   getBoardEvents, saveBoardEvent, deleteBoardEvent,
   exportData, importData, generateId, migrateDataToFirebase 
@@ -320,6 +320,17 @@ export default function AdminPanel({ onDataChange }) {
           }}
         >
           🎁 متجر الجوائز
+        </button>
+        <button 
+          onClick={() => setActiveTab('attendance')} 
+          className="btn" 
+          style={{ 
+            justifyContent: 'flex-start',
+            backgroundColor: activeTab === 'attendance' ? 'var(--primary)' : 'transparent',
+            color: activeTab === 'attendance' ? '#fff' : 'var(--text-secondary)'
+          }}
+        >
+          📍 سجل الحضور
         </button>
         <button 
           onClick={() => setActiveTab('backup')} 
@@ -919,6 +930,11 @@ export default function AdminPanel({ onDataChange }) {
           </div>
         )}
 
+        {/* ================= تبويب سجل الحضور ================= */}
+        {activeTab === 'attendance' && (
+          <AttendanceTab rooms={rooms} />
+        )}
+
         {/* ================= تبويب النسخ الاحتياطي ================= */}
         {activeTab === 'backup' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '500px' }}>
@@ -985,6 +1001,134 @@ export default function AdminPanel({ onDataChange }) {
           </div>
         )}
 
+      </div>
+    </div>
+  );
+}
+
+// ===================== مكوّن سجل الحضور =====================
+function AttendanceTab({ rooms }) {
+  const [selectedRoomId, setSelectedRoomId] = useState(rooms[0]?.id || 'all');
+  const [now, setNow] = useState(Date.now());
+
+  // تحديث الوقت كل دقيقة
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const allPlayers = getAllPlayers();
+  const displayPlayers = selectedRoomId === 'all'
+    ? allPlayers
+    : allPlayers.filter(p => p.roomId === selectedRoomId);
+
+  const formatLastSeen = (isoString) => {
+    if (!isoString) return { text: '—  لم يُسجَّل بعد', color: 'var(--text-muted)', icon: '⚪' };
+    const diff = now - new Date(isoString).getTime();
+    const mins = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (mins < 1)  return { text: 'الآن 🟢', color: '#10b981', icon: '🟢' };
+    if (mins < 60) return { text: `منذ ${mins} دقيقة`, color: '#34d399', icon: '🟢' };
+    if (hours < 24) return { text: `منذ ${hours} ساعة`, color: '#f59e0b', icon: '🟡' };
+    if (days < 7)  return { text: `منذ ${days} أيام`, color: '#fb923c', icon: '🟠' };
+    return { text: `منذ ${days} يوم`, color: '#ef4444', icon: '🔴' };
+  };
+
+  const sorted = [...displayPlayers].sort((a, b) => {
+    if (!a.lastSeenAt && !b.lastSeenAt) return 0;
+    if (!a.lastSeenAt) return 1;
+    if (!b.lastSeenAt) return -1;
+    return new Date(b.lastSeenAt) - new Date(a.lastSeenAt);
+  });
+
+  const getRoomName = (roomId) => rooms.find(r => r.id === roomId)?.name || '—';
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+        <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>📍 سجل آخر ظهور للطلاب</h3>
+        <select
+          value={selectedRoomId}
+          onChange={e => setSelectedRoomId(e.target.value)}
+          className="form-input"
+          style={{ maxWidth: '220px' }}
+        >
+          <option value="all">📋 جميع الغرف</option>
+          {rooms.map(r => (
+            <option key={r.id} value={r.id}>{r.name}</option>
+          ))}
+        </select>
+      </div>
+
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
+              <th style={{ padding: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>#</th>
+              <th style={{ padding: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>الطالب</th>
+              <th style={{ padding: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>الغرفة</th>
+              <th style={{ padding: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>النقاط</th>
+              <th style={{ padding: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>آخر ظهور</th>
+              <th style={{ padding: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>التاريخ والوقت</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((p, i) => {
+              const ls = formatLastSeen(p.lastSeenAt);
+              const dateStr = p.lastSeenAt
+                ? new Date(p.lastSeenAt).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })
+                : '—';
+              return (
+                <tr
+                  key={p.id}
+                  style={{
+                    borderBottom: '1px solid var(--border-light)',
+                    backgroundColor: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)'
+                  }}
+                >
+                  <td style={{ padding: '0.75rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>{i + 1}</td>
+                  <td style={{ padding: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{ fontSize: '1.3rem' }}>{p.avatar || '👤'}</span>
+                      <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{p.name}</span>
+                    </div>
+                  </td>
+                  <td style={{ padding: '0.75rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    {getRoomName(p.roomId)}
+                  </td>
+                  <td style={{ padding: '0.75rem', color: '#34d399', fontWeight: 800 }}>
+                    {p.points?.toLocaleString() || 0} ن
+                  </td>
+                  <td style={{ padding: '0.75rem' }}>
+                    <span style={{
+                      color: ls.color,
+                      fontWeight: 700,
+                      fontSize: '0.9rem'
+                    }}>
+                      {ls.icon} {ls.text}
+                    </span>
+                  </td>
+                  <td style={{ padding: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                    {dateStr}
+                  </td>
+                </tr>
+              );
+            })}
+            {sorted.length === 0 && (
+              <tr>
+                <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  لا يوجد طلاب في هذه الغرفة.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '0.5rem', borderTop: '1px solid var(--border-light)' }}>
+        💡 يتم تحديث سجل الحضور تلقائياً في كل مرة يُطبَّق فيها بطاقة على الطالب.
       </div>
     </div>
   );

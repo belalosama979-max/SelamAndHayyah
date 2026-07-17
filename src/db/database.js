@@ -429,6 +429,22 @@ export const deletePlayer = (playerId, roomId) => {
   return getPlayers(roomId);
 };
 
+// تسجيل آخر زيارة/جلسة للطالب (يُستدعى عند تحديد الطالب أو تطبيق بطاقة عليه)
+export const recordPlayerVisit = (playerId) => {
+  if (!playerId) return;
+  try {
+    const players = getAllPlayers();
+    const idx = players.findIndex(p => p.id === playerId);
+    if (idx >= 0) {
+      players[idx].lastSeenAt = new Date().toISOString();
+      setLocalItem(KEYS.PLAYERS, JSON.stringify(players));
+    }
+  } catch(e) {
+    console.error('recordPlayerVisit error:', e);
+  }
+};
+
+
 // إعادة حساب الترتيب ونسب التقدم للاعبين في نسخة معينة
 export const recalculateRanks = (roomId) => {
   const allPlayers = getAllPlayers();
