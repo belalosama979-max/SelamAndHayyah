@@ -273,5 +273,9 @@ export const DEFAULT_REWARDS = [
   { id: "reward-16", name: "مكعب روبيك (أصلي)", pointsCost: 1000, description: "2 دينار (خفيفة لمتوسطة)", isFeatured: false, imageEmoji: "🧊", remainingStock: 10 },
   { id: "reward-17", name: "لعبة أونو", pointsCost: 600, description: "1 دينار (خفيفة)", isFeatured: false, imageEmoji: "🃏", remainingStock: 20 },
   { id: "reward-18", name: "حبل نط", pointsCost: 600, description: "1.5 دينار (خفيفة)", isFeatured: false, imageEmoji: "➰", remainingStock: 15 },
-  { id: "reward-19", name: "قفازات حارس مرمى", pointsCost: 1500, description: "3 دنانير (متوسطة)", isFeatured: false, imageEmoji: "🧤", remainingStock: 5 }
+  { id: "reward-19", name: "قفازات حارس مرمى", pointsCost: 1500, description: "3 دنانير (متوسطة)", isFeatured: false, imageEmoji: "🧤", remainingStock: 5 },
+  { id: "reward-20", name: "أتاري (SUP Game Box)", pointsCost: 2000, description: "5 دنانير (غالية)", isFeatured: true, imageEmoji: "🕹️", images: ["/atari_reward.png"], remainingStock: 5, stock: 5 },
+  { id: "reward-21", name: "بلوزة", pointsCost: 2000, description: "5 دنانير (غالية)", isFeatured: true, imageEmoji: "👕", images: ["/blouse_reward.png"], remainingStock: 5, stock: 5 },
+  { id: "reward-22", name: "سندويشة شاورما كبير", pointsCost: 480, description: "1.2 دينار (خفيفة)", isFeatured: false, imageEmoji: "🥙", remainingStock: 30, stock: 30 },
+  { id: "reward-23", name: "مصحف", pointsCost: 1200, description: "3 دنانير (متوسطة)", isFeatured: false, imageEmoji: "📖", remainingStock: 10, stock: 10 }
 ];

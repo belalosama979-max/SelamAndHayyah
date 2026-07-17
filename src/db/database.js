@@ -199,6 +199,14 @@ export const initDatabase = () => {
       const isMissingNewItems = !currentRewards.some(r => r.name === 'أبو صالح');
       if (hasOldPrices || isMissingNewItems) {
         setLocalItem(KEYS.REWARDS, JSON.stringify(DEFAULT_REWARDS), true);
+      } else {
+        // دمج الهدايا الجديدة دون حذف الموجودة
+        const existingIds = new Set(currentRewards.map(r => r.id));
+        const newRewardsToAdd = DEFAULT_REWARDS.filter(r => !existingIds.has(r.id));
+        if (newRewardsToAdd.length > 0) {
+          const merged = [...currentRewards, ...newRewardsToAdd];
+          setLocalItem(KEYS.REWARDS, JSON.stringify(merged), true);
+        }
       }
     }
   }
