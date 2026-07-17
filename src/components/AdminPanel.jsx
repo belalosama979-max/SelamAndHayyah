@@ -1017,10 +1017,21 @@ function AttendanceTab({ rooms }) {
     return () => clearInterval(interval);
   }, []);
 
-  const [allPlayers, setAllPlayers] = useState(() => getAllPlayers().filter(p => p.name && p.roomId));
+  const isValidPlayer = (p) => {
+    if (!p || !p.name || !p.roomId || !p.id) return false;
+    // الأسماء الحقيقية: قصيرة وبدون رموز base64/JWT
+    if (p.name.length > 60) return false;
+    if (/[\/\+\=]/.test(p.name)) return false;
+    // الـ id يجب أن يكون قصيراً (generateId يولّد 9 أحرف)
+    if (p.id.length > 30) return false;
+    return true;
+  };
+
+  const [allPlayers, setAllPlayers] = useState(() => getAllPlayers().filter(isValidPlayer));
+
 
   useEffect(() => {
-    const refresh = () => setAllPlayers(getAllPlayers().filter(p => p.name && p.roomId));
+    const refresh = () => setAllPlayers(getAllPlayers().filter(isValidPlayer));
     window.addEventListener('db_sync', refresh);
     return () => window.removeEventListener('db_sync', refresh);
   }, []);
