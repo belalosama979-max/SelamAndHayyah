@@ -1017,7 +1017,14 @@ function AttendanceTab({ rooms }) {
     return () => clearInterval(interval);
   }, []);
 
-  const allPlayers = getAllPlayers();
+  const [allPlayers, setAllPlayers] = useState(() => getAllPlayers().filter(p => p.name && p.roomId));
+
+  useEffect(() => {
+    const refresh = () => setAllPlayers(getAllPlayers().filter(p => p.name && p.roomId));
+    window.addEventListener('db_sync', refresh);
+    return () => window.removeEventListener('db_sync', refresh);
+  }, []);
+
   const displayPlayers = selectedRoomId === 'all'
     ? allPlayers
     : allPlayers.filter(p => p.roomId === selectedRoomId);
