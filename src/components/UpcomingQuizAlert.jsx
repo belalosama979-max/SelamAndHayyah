@@ -89,12 +89,12 @@ export default function UpcomingQuizAlert({ upcomingQuiz }) {
           <h4 style={{ margin: 0, color: 'var(--gold)', fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span>⏳</span> تحدي قادم قريباً!
           </h4>
-          <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.9rem', color: '#fff' }}>{upcomingQuiz.title}</p>
+          <p style={{ margin: '0.2rem 0 0 0', fontSize: '1.1rem', color: '#ffffff', fontWeight: 700 }}>{upcomingQuiz.title}</p>
         </div>
         <button onClick={() => setVisible(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '1.2rem', cursor: 'pointer', padding: '0 0.5rem' }}>✖</button>
       </div>
       
-      <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--primary-light)', textAlign: 'center', padding: '0.5rem', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '8px' }}>
+      <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#ffffff', textAlign: 'center', padding: '0.8rem', backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
         {timeLeftStr}
       </div>
 
