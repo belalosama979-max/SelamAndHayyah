@@ -986,18 +986,17 @@ html, body {
 /* ======================================================== */
 
 /* Fix 100vh on iOS (Safari URL bar eats into viewport) */
-html {
-  height: -webkit-fill-available;
-}
-
-body {
-  min-height: 100vh;
-  min-height: -webkit-fill-available;
-  /* Prevent overscroll bounce that can break fixed elements */
-  overscroll-behavior: none;
-  /* Prevent text resize on orientation change */
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
+@supports (-webkit-touch-callout: none) {
+  body {
+    min-height: -webkit-fill-available;
+    /* Prevent text resize on orientation change */
+    -webkit-text-size-adjust: 100%;
+  }
+  
+  /* Fix fullscreen board on iOS */
+  .fullscreen-board {
+    height: -webkit-fill-available;
+  }
 }
 
 /* Safe area insets for iPhone X+ notch */
@@ -1075,15 +1074,10 @@ a, button, input, select, textarea, label {
   }
 }
 
-/* Fix fullscreen board on iOS */
+/* Fix fullscreen board */
 .fullscreen-board {
+  height: 100vh;
   height: 100dvh;
-}
-@supports not (height: 100dvh) {
-  .fullscreen-board {
-    height: 100vh;
-    height: -webkit-fill-available;
-  }
 }
 
 /* Smooth scrolling on iOS */

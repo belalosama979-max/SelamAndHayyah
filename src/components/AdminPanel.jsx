@@ -956,6 +956,67 @@ export default function AdminPanel({ onDataChange }) {
           <AttendanceTab rooms={rooms} />
         )}
 
+        {/* ================= تبويب إعدادات الخريطة ================= */}
+        {activeTab === 'settings' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '500px' }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>⚙️ إعدادات الخريطة</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              يمكنك تغيير الهدف النهائي للنقاط وسعة الخريطة. سيتم تلقائياً تحديث مواقع جميع الطلاب بناءً على هذه الإعدادات الجديدة.
+            </p>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target);
+              const targetPoints = parseInt(formData.get('targetPoints'), 10);
+              const boardSize = parseInt(formData.get('boardSize'), 10);
+              
+              if (targetPoints > 0 && boardSize > 0) {
+                saveGameSettings({ targetPoints, boardSize });
+                alert('✅ تم حفظ الإعدادات بنجاح وتحديث مواقع الطلاب!');
+                window.location.reload();
+              }
+            }} style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1rem',
+              backgroundColor: 'var(--bg-glass)',
+              padding: '1.5rem',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border-color)',
+              marginTop: '1rem'
+            }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 600 }}>الهدف النهائي (النقاط)</label>
+                <input 
+                  type="number" 
+                  name="targetPoints"
+                  defaultValue={getGameSettings().targetPoints}
+                  required 
+                  min="100" 
+                  className="form-input"
+                />
+              </div>
+              
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.5rem', fontWeight: 600 }}>سعة الخريطة (عدد الخانات)</label>
+                <input 
+                  type="number" 
+                  name="boardSize"
+                  defaultValue={getGameSettings().boardSize}
+                  required 
+                  min="10"
+                  max="1000"
+                  className="form-input"
+                />
+              </div>
+
+              <button type="submit" className="btn btn-primary" style={{ marginTop: '0.5rem' }}>
+                💾 حفظ الإعدادات
+              </button>
+            </form>
+          </div>
+        )}
+
         {/* ================= تبويب النسخ الاحتياطي ================= */}
         {activeTab === 'backup' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '500px' }}>
@@ -1038,10 +1099,11 @@ function AttendanceTab({ rooms }) {
   }, []);
 
   const isValidPlayer = (p) => {
-    if (!p || !p.name || !p.roomId || !p.id) return false;
-    if (p.name.length > 60) return false;
-    if (/[\/\+\=]/.test(p.name)) return false;
-    if (p.id.length > 30) return false;
+    if (!p || !p.name || typeof p.name !== 'string' || !p.roomId || !p.id) return false;
+    if (p.name.length > 50) return false;
+    // Filter out long strings with base64 characters or very long single words
+    if (/[\/\+\=\\]/.test(p.name)) return false;
+    if (!p.name.includes(' ') && p.name.length > 20) return false;
     return true;
   };
 
@@ -1139,7 +1201,6 @@ function AttendanceTab({ rooms }) {
               <th style={{ padding: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>الغرفة</th>
               <th style={{ padding: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>النقاط</th>
               <th style={{ padding: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>آخر دخول</th>
-              <th style={{ padding: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>التاريخ والوقت</th>
             </tr>
           </thead>
           <tbody>
@@ -1148,7 +1209,7 @@ function AttendanceTab({ rooms }) {
               const visitedToday = isToday(p.lastSeenAt);
               const dateStr = p.lastSeenAt
                 ? new Date(p.lastSeenAt).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })
-                : '—';
+                : '';
               return (
                 <tr
                   key={p.id}
@@ -1187,12 +1248,16 @@ function AttendanceTab({ rooms }) {
                     {p.points?.toLocaleString() || 0} ن
                   </td>
                   <td style={{ padding: '0.75rem' }}>
-                    <span style={{ color: ls.color, fontWeight: 700, fontSize: '0.9rem' }}>
-                      {ls.icon} {ls.text}
-                    </span>
-                  </td>
-                  <td style={{ padding: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                    {dateStr}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                      <span style={{ color: ls.color, fontWeight: 700, fontSize: '0.9rem' }}>
+                        {ls.icon} {ls.text}
+                      </span>
+                      {dateStr && (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                          {dateStr}
+                        </span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
