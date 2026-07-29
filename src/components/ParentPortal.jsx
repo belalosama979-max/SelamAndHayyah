@@ -1,6 +1,6 @@
 import AvatarDisplay from './AvatarDisplay';
 import React, { useState, useEffect, useMemo } from 'react';
-import { getAllPlayers, getRooms, getAllLogs, getBoardEvents, getAllPrizeRequests, getRewards, orderPrize, savePlayer } from '../db/database';
+import { getAllPlayers, getRooms, getAllLogs, getBoardEvents, getAllPrizeRequests, getRewards, orderPrize, savePlayer, recordPlayerVisit } from '../db/database';
 import { getRemainingPoints } from '../utils/helpers';
 import Board from './Board';
 
@@ -90,6 +90,8 @@ export default function ParentPortal() {
         setStudentTab('dashboard');
         setErrorMsg('');
         setPasswordInput('');
+        // تسجيل وقت دخول الطالب تلقائياً لسجل الحضور
+        recordPlayerVisit(selectedPlayer.id);
       }
     } else {
       setErrorMsg('كلمة المرور غير صحيحة.');

@@ -1029,10 +1029,9 @@ export default function AdminPanel({ onDataChange }) {
 
 // ===================== مكوّن سجل الحضور =====================
 function AttendanceTab({ rooms }) {
-  const [selectedRoomId, setSelectedRoomId] = useState(rooms[0]?.id || 'all');
+  const [selectedRoomId, setSelectedRoomId] = useState('all');
   const [now, setNow] = useState(Date.now());
 
-  // تحديث الوقت كل دقيقة
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 60000);
     return () => clearInterval(interval);
@@ -1040,16 +1039,13 @@ function AttendanceTab({ rooms }) {
 
   const isValidPlayer = (p) => {
     if (!p || !p.name || !p.roomId || !p.id) return false;
-    // الأسماء الحقيقية: قصيرة وبدون رموز base64/JWT
     if (p.name.length > 60) return false;
     if (/[\/\+\=]/.test(p.name)) return false;
-    // الـ id يجب أن يكون قصيراً (generateId يولّد 9 أحرف)
     if (p.id.length > 30) return false;
     return true;
   };
 
   const [allPlayers, setAllPlayers] = useState(() => getAllPlayers().filter(isValidPlayer));
-
 
   useEffect(() => {
     const refresh = () => setAllPlayers(getAllPlayers().filter(isValidPlayer));
@@ -1061,17 +1057,27 @@ function AttendanceTab({ rooms }) {
     ? allPlayers
     : allPlayers.filter(p => p.roomId === selectedRoomId);
 
+  const isToday = (isoString) => {
+    if (!isoString) return false;
+    const d = new Date(isoString);
+    const t = new Date();
+    return d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
+  };
+
+  const todayCount = displayPlayers.filter(p => isToday(p.lastSeenAt)).length;
+
   const formatLastSeen = (isoString) => {
-    if (!isoString) return { text: '—  لم يُسجَّل بعد', color: 'var(--text-muted)', icon: '⚪' };
+    if (!isoString) return { text: 'لم يفتح صفحته بعد', color: 'var(--text-muted)', icon: '⚪' };
     const diff = now - new Date(isoString).getTime();
     const mins = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
 
-    if (mins < 1)  return { text: 'الآن 🟢', color: '#10b981', icon: '🟢' };
-    if (mins < 60) return { text: `منذ ${mins} دقيقة`, color: '#34d399', icon: '🟢' };
+    if (mins < 1)   return { text: 'الآن 🟢', color: '#10b981', icon: '🟢' };
+    if (mins < 60)  return { text: `منذ ${mins} دقيقة`, color: '#34d399', icon: '🟢' };
     if (hours < 24) return { text: `منذ ${hours} ساعة`, color: '#f59e0b', icon: '🟡' };
-    if (days < 7)  return { text: `منذ ${days} أيام`, color: '#fb923c', icon: '🟠' };
+    if (days === 1) return { text: 'أمس', color: '#fb923c', icon: '🟠' };
+    if (days < 7)   return { text: `منذ ${days} أيام`, color: '#fb923c', icon: '🟠' };
     return { text: `منذ ${days} يوم`, color: '#ef4444', icon: '🔴' };
   };
 
@@ -1086,21 +1092,44 @@ function AttendanceTab({ rooms }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-        <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>📍 سجل آخر ظهور للطلاب</h3>
-        <select
-          value={selectedRoomId}
-          onChange={e => setSelectedRoomId(e.target.value)}
-          className="form-input"
-          style={{ maxWidth: '220px' }}
-        >
-          <option value="all">📋 جميع الغرف</option>
-          {rooms.map(r => (
-            <option key={r.id} value={r.id}>{r.name}</option>
-          ))}
-        </select>
+
+      {/* الهيدر */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>📋 سجل دخول الطلاب</h3>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.3rem', lineHeight: 1.5 }}>
+            يُسجَّل تلقائياً كل ما فتح الطالب صفحته ببوابة المتابعة ودخل بكلمة مروره.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* بادج عدد الداخلين اليوم */}
+          <div style={{
+            padding: '0.4rem 0.9rem',
+            backgroundColor: todayCount > 0 ? 'rgba(16,185,129,0.12)' : 'var(--bg-glass)',
+            color: todayCount > 0 ? '#10b981' : 'var(--text-muted)',
+            border: `1px solid ${todayCount > 0 ? '#10b981' : 'var(--border-color)'}`,
+            borderRadius: 'var(--radius-md)',
+            fontSize: '0.85rem',
+            fontWeight: 700,
+            whiteSpace: 'nowrap'
+          }}>
+            🟢 دخل اليوم: {todayCount} / {displayPlayers.length}
+          </div>
+          <select
+            value={selectedRoomId}
+            onChange={e => setSelectedRoomId(e.target.value)}
+            className="form-input"
+            style={{ maxWidth: '220px' }}
+          >
+            <option value="all">📋 جميع الغرف</option>
+            {rooms.map(r => (
+              <option key={r.id} value={r.id}>{r.name}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
+      {/* الجدول */}
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
           <thead>
@@ -1109,13 +1138,14 @@ function AttendanceTab({ rooms }) {
               <th style={{ padding: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>الطالب</th>
               <th style={{ padding: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>الغرفة</th>
               <th style={{ padding: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>النقاط</th>
-              <th style={{ padding: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>آخر ظهور</th>
+              <th style={{ padding: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>آخر دخول</th>
               <th style={{ padding: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>التاريخ والوقت</th>
             </tr>
           </thead>
           <tbody>
             {sorted.map((p, i) => {
               const ls = formatLastSeen(p.lastSeenAt);
+              const visitedToday = isToday(p.lastSeenAt);
               const dateStr = p.lastSeenAt
                 ? new Date(p.lastSeenAt).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })
                 : '—';
@@ -1124,14 +1154,30 @@ function AttendanceTab({ rooms }) {
                   key={p.id}
                   style={{
                     borderBottom: '1px solid var(--border-light)',
-                    backgroundColor: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)'
+                    backgroundColor: visitedToday
+                      ? 'rgba(16,185,129,0.05)'
+                      : (i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)')
                   }}
                 >
                   <td style={{ padding: '0.75rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>{i + 1}</td>
                   <td style={{ padding: '0.75rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <span style={{ fontSize: '1.3rem' }}>{p.avatar || '👤'}</span>
-                      <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{p.name}</span>
+                      <span style={{ fontWeight: 800, color: visitedToday ? '#10b981' : 'var(--text-primary)' }}>
+                        {p.name}
+                      </span>
+                      {visitedToday && (
+                        <span style={{
+                          fontSize: '0.7rem',
+                          padding: '0.1rem 0.4rem',
+                          backgroundColor: 'rgba(16,185,129,0.15)',
+                          color: '#10b981',
+                          borderRadius: '999px',
+                          fontWeight: 700
+                        }}>
+                          اليوم ✓
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td style={{ padding: '0.75rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
@@ -1141,11 +1187,7 @@ function AttendanceTab({ rooms }) {
                     {p.points?.toLocaleString() || 0} ن
                   </td>
                   <td style={{ padding: '0.75rem' }}>
-                    <span style={{
-                      color: ls.color,
-                      fontWeight: 700,
-                      fontSize: '0.9rem'
-                    }}>
+                    <span style={{ color: ls.color, fontWeight: 700, fontSize: '0.9rem' }}>
                       {ls.icon} {ls.text}
                     </span>
                   </td>
@@ -1167,8 +1209,9 @@ function AttendanceTab({ rooms }) {
       </div>
 
       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', padding: '0.5rem', borderTop: '1px solid var(--border-light)' }}>
-        💡 يتم تحديث سجل الحضور تلقائياً في كل مرة يُطبَّق فيها بطاقة على الطالب.
+        💡 يُحدَّث هذا السجل تلقائياً كل ما فتح الطالب صفحته ببوابة المتابعة ودخل بكلمة مروره.
       </div>
     </div>
   );
 }
+
