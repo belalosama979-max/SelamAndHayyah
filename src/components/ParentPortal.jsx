@@ -4,6 +4,7 @@ import { getAllPlayers, getRooms, getAllLogs, getBoardEvents, getAllPrizeRequest
 import { getRemainingPoints } from '../utils/helpers';
 import Board from './Board';
 import StudentQuiz from './StudentQuiz';
+import UpcomingQuizAlert from './UpcomingQuizAlert';
 
 export default function ParentPortal() {
   const [currentView, setCurrentView] = useState(sessionStorage.getItem('aqsa_parent_currentView') || 'landing'); // landing, student
@@ -16,6 +17,7 @@ export default function ParentPortal() {
   });
   const [errorMsg, setErrorMsg] = useState('');
   const [activeQuiz, setActiveQuiz] = useState(null);
+  const [upcomingQuiz, setUpcomingQuiz] = useState(null);
 
   useEffect(() => {
     sessionStorage.setItem('aqsa_parent_currentView', currentView);
@@ -98,11 +100,21 @@ export default function ParentPortal() {
           return isActive && isNotAnswered;
         });
 
+        const upcomingQuizFound = allQuizzes.find(q => {
+          const start = new Date(q.startTime);
+          const diffMs = start - now;
+          // Starts in the future and within 1 hour (3600000 ms)
+          const isUpcoming = diffMs > 0 && diffMs <= 60 * 60 * 1000;
+          const isNotAnswered = !selectedPlayer.answeredQuizzes || !selectedPlayer.answeredQuizzes[q.id];
+          return isUpcoming && isNotAnswered;
+        });
+
         if (availableQuiz) {
           setStudent(selectedPlayer);
           setActiveQuiz(availableQuiz);
         } else {
           setStudent(selectedPlayer);
+          setUpcomingQuiz(upcomingQuizFound || null);
           setCurrentView('student');
           setStudentTab('dashboard');
         }
@@ -233,8 +245,11 @@ export default function ParentPortal() {
       backgroundColor: '#070a13',
       color: '#f9fafb',
       fontFamily: 'system-ui, -apple-system, sans-serif',
-      direction: 'rtl'
+      direction: 'rtl',
+      position: 'relative'
     }}>
+      <UpcomingQuizAlert upcomingQuiz={upcomingQuiz} />
+      
       {/* Header */}
       <header style={{
         padding: '1rem 2rem',
