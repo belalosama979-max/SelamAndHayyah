@@ -6,7 +6,11 @@ export default function AdminQuizzesTab({ onDataChange }) {
   const [editingQuiz, setEditingQuiz] = useState(null);
   
   // States for new/editing quiz
-  const [quizForm, setQuizForm] = useState({ title: '', startTime: '', endTime: '' });
+  const [quizForm, setQuizForm] = useState({ 
+    title: '', 
+    startDate: '', startTime: '', 
+    endDate: '', endTime: '' 
+  });
   
   // States for new question
   const [showQuestionForm, setShowQuestionForm] = useState(false);
@@ -25,22 +29,29 @@ export default function AdminQuizzesTab({ onDataChange }) {
 
   const handleCreateQuiz = (e) => {
     e.preventDefault();
-    if (!quizForm.title || !quizForm.startTime || !quizForm.endTime) return;
+    if (!quizForm.title || !quizForm.startDate || !quizForm.startTime || !quizForm.endDate || !quizForm.endTime) {
+      alert('الرجاء إكمال جميع الحقول');
+      return;
+    }
     
+    // Combine date and time
+    const startDateTime = new Date(`${quizForm.startDate}T${quizForm.startTime}`);
+    const endDateTime = new Date(`${quizForm.endDate}T${quizForm.endTime}`);
+
     // Validate times
-    if (new Date(quizForm.endTime) <= new Date(quizForm.startTime)) {
+    if (endDateTime <= startDateTime) {
       alert('وقت النهاية يجب أن يكون بعد وقت البداية');
       return;
     }
 
     saveQuiz({
       title: quizForm.title,
-      startTime: new Date(quizForm.startTime).toISOString(),
-      endTime: new Date(quizForm.endTime).toISOString(),
+      startTime: startDateTime.toISOString(),
+      endTime: endDateTime.toISOString(),
       questions: []
     });
     
-    setQuizForm({ title: '', startTime: '', endTime: '' });
+    setQuizForm({ title: '', startDate: '', startTime: '', endDate: '', endTime: '' });
     refreshData();
   };
 
@@ -113,20 +124,35 @@ export default function AdminQuizzesTab({ onDataChange }) {
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
               سيظهر هذا التحدي للطلاب تلقائياً عند دخولهم البوابة خلال الوقت المحدد.
             </p>
-            <form onSubmit={handleCreateQuiz} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', alignItems: 'end' }}>
+            <form onSubmit={handleCreateQuiz} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div>
                 <label className="form-label">عنوان التحدي</label>
                 <input type="text" required value={quizForm.title} onChange={e => setQuizForm({...quizForm, title: e.target.value})} className="form-input" placeholder="مثال: لغز يوم الجمعة" />
               </div>
-              <div>
-                <label className="form-label">وقت البداية</label>
-                <input type="datetime-local" required value={quizForm.startTime} onChange={e => setQuizForm({...quizForm, startTime: e.target.value})} className="form-input" />
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', backgroundColor: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                <div>
+                  <label className="form-label">📅 تاريخ البداية</label>
+                  <input type="date" required value={quizForm.startDate} onChange={e => setQuizForm({...quizForm, startDate: e.target.value})} className="form-input" />
+                </div>
+                <div>
+                  <label className="form-label">⏰ وقت البداية (الساعة والدقيقة)</label>
+                  <input type="time" required value={quizForm.startTime} onChange={e => setQuizForm({...quizForm, startTime: e.target.value})} className="form-input" />
+                </div>
               </div>
-              <div>
-                <label className="form-label">وقت النهاية</label>
-                <input type="datetime-local" required value={quizForm.endTime} onChange={e => setQuizForm({...quizForm, endTime: e.target.value})} className="form-input" />
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', backgroundColor: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                <div>
+                  <label className="form-label">📅 تاريخ النهاية</label>
+                  <input type="date" required value={quizForm.endDate} onChange={e => setQuizForm({...quizForm, endDate: e.target.value})} className="form-input" />
+                </div>
+                <div>
+                  <label className="form-label">⏰ وقت النهاية (الساعة والدقيقة)</label>
+                  <input type="time" required value={quizForm.endTime} onChange={e => setQuizForm({...quizForm, endTime: e.target.value})} className="form-input" />
+                </div>
               </div>
-              <button type="submit" className="btn btn-primary">إضافة التحدي</button>
+
+              <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-start', padding: '0.8rem 2rem' }}>إضافة التحدي</button>
             </form>
           </div>
 
