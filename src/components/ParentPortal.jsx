@@ -1,8 +1,9 @@
 import AvatarDisplay from './AvatarDisplay';
 import React, { useState, useEffect, useMemo } from 'react';
-import { getAllPlayers, getRooms, getAllLogs, getBoardEvents, getAllPrizeRequests, getRewards, orderPrize, savePlayer, recordPlayerVisit } from '../db/database';
+import { getAllPlayers, getRooms, getAllLogs, getBoardEvents, getAllPrizeRequests, getRewards, orderPrize, savePlayer, recordPlayerVisit, getQuizzes } from '../db/database';
 import { getRemainingPoints } from '../utils/helpers';
 import Board from './Board';
+import StudentQuiz from './StudentQuiz';
 
 export default function ParentPortal() {
   const [currentView, setCurrentView] = useState(sessionStorage.getItem('aqsa_parent_currentView') || 'landing'); // landing, student
@@ -14,6 +15,7 @@ export default function ParentPortal() {
     } catch(e) { return null; }
   });
   const [errorMsg, setErrorMsg] = useState('');
+  const [activeQuiz, setActiveQuiz] = useState(null);
 
   useEffect(() => {
     sessionStorage.setItem('aqsa_parent_currentView', currentView);
@@ -85,9 +87,26 @@ export default function ParentPortal() {
         setErrorMsg('عذراً، تم تعطيل بوابة المتابعة لهذا الطالب مؤقتاً من قبل المشرف.');
         setStudent(null);
       } else {
-        setStudent(selectedPlayer);
-        setCurrentView('student');
-        setStudentTab('dashboard');
+        // التحقق من وجود تحدي نشط لم يحله الطالب بعد
+        const now = new Date();
+        const allQuizzes = getQuizzes();
+        const availableQuiz = allQuizzes.find(q => {
+          const start = new Date(q.startTime);
+          const end = new Date(q.endTime);
+          const isActive = now >= start && now <= end;
+          const isNotAnswered = !selectedPlayer.answeredQuizzes || !selectedPlayer.answeredQuizzes[q.id];
+          return isActive && isNotAnswered;
+        });
+
+        if (availableQuiz) {
+          setStudent(selectedPlayer);
+          setActiveQuiz(availableQuiz);
+        } else {
+          setStudent(selectedPlayer);
+          setCurrentView('student');
+          setStudentTab('dashboard');
+        }
+        
         setErrorMsg('');
         setPasswordInput('');
         // تسجيل وقت دخول الطالب تلقائياً لسجل الحضور
@@ -97,6 +116,33 @@ export default function ParentPortal() {
       setErrorMsg('كلمة المرور غير صحيحة.');
       setStudent(null);
     }
+  };
+
+  const handleQuizComplete = (earnedPoints) => {
+    // 1. Update the student in DB
+    const updatedStudent = {
+      ...student,
+      points: (student.points || 0) + earnedPoints,
+      totalCollectedPoints: (student.totalCollectedPoints || 0) + earnedPoints,
+      answeredQuizzes: {
+        ...(student.answeredQuizzes || {}),
+        [activeQuiz.id]: {
+          pointsEarned: earnedPoints,
+          completedAt: new Date().toISOString()
+        }
+      }
+    };
+    savePlayer(updatedStudent);
+    
+    // 2. Update local state
+    setStudent(updatedStudent);
+    const updatedPlayers = getAllPlayers();
+    setAllPlayers(updatedPlayers);
+    
+    // 3. Proceed to portal
+    setActiveQuiz(null);
+    setCurrentView('student');
+    setStudentTab('dashboard');
   };
 
   const handleOrderPrize = (reward) => {

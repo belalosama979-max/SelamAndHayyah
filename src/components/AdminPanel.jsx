@@ -10,6 +10,7 @@ import {
 } from '../db/database';
 import { formatDate } from '../utils/helpers';
 import AdminShopPanel from './AdminShopPanel';
+import AdminQuizzesTab from './AdminQuizzesTab';
 
 export default function AdminPanel({ onDataChange }) {
   const [activeTab, setActiveTab] = useState('rooms');
@@ -352,6 +353,17 @@ export default function AdminPanel({ onDataChange }) {
           }}
         >
           📍 سجل الحضور
+        </button>
+        <button 
+          onClick={() => setActiveTab('quizzes')} 
+          className="btn" 
+          style={{ 
+            justifyContent: 'flex-start',
+            backgroundColor: activeTab === 'quizzes' ? 'var(--primary)' : 'transparent',
+            color: activeTab === 'quizzes' ? '#fff' : 'var(--text-secondary)'
+          }}
+        >
+          🧩 الألغاز والتحديات
         </button>
         <button 
           onClick={() => setActiveTab('backup')} 
@@ -954,6 +966,14 @@ export default function AdminPanel({ onDataChange }) {
         {/* ================= تبويب سجل الحضور ================= */}
         {activeTab === 'attendance' && (
           <AttendanceTab rooms={rooms} />
+        )}
+
+        {/* ================= تبويب الألغاز ================= */}
+        {activeTab === 'quizzes' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>🧩 الألغاز والتحديات الموقوتة</h3>
+            <AdminQuizzesTab onDataChange={refreshData} />
+          </div>
         )}
 
         {/* ================= تبويب إعدادات الخريطة ================= */}

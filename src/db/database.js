@@ -25,10 +25,51 @@ const KEYS = {
   LOGS: 'aqsa_game_action_logs',
   REWARDS: 'aqsa_game_rewards',
   PRIZE_REQUESTS: 'aqsa_game_prize_requests',
-  SETTINGS: 'aqsa_game_settings'
+  SETTINGS: 'aqsa_game_settings',
+  QUIZZES: 'aqsa_game_quizzes'
 };
 
 let syncStarted = false;
+
+// ================================================================
+// Quizzes (الألغاز والأسئلة)
+// ================================================================
+export const getQuizzes = () => {
+  initDatabase();
+  try {
+    return JSON.parse(localStorage.getItem(KEYS.QUIZZES) || '[]');
+  } catch(e) {
+    return [];
+  }
+};
+
+export const saveQuiz = (quiz) => {
+  const quizzes = getQuizzes();
+  if (quiz.id) {
+    const idx = quizzes.findIndex(q => q.id === quiz.id);
+    if (idx >= 0) {
+      quizzes[idx] = { ...quizzes[idx], ...quiz, updatedAt: new Date().toISOString() };
+    } else {
+      quizzes.push({ ...quiz, updatedAt: new Date().toISOString() });
+    }
+  } else {
+    quizzes.push({
+      ...quiz,
+      id: generateId(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+  }
+  setLocalItem(KEYS.QUIZZES, JSON.stringify(quizzes));
+  return true;
+};
+
+export const deleteQuiz = (quizId) => {
+  let quizzes = getQuizzes();
+  quizzes = quizzes.filter(q => q.id !== quizId);
+  setLocalItem(KEYS.QUIZZES, JSON.stringify(quizzes));
+  return true;
+};
 
 // ================================================================
 // إعدادات اللعبة العامة (الهدف وسعة الخريطة)
@@ -248,6 +289,10 @@ export const initDatabase = () => {
   
   if (!localStorage.getItem(KEYS.PRIZE_REQUESTS)) {
     setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify([]), true);
+  }
+
+  if (!localStorage.getItem(KEYS.QUIZZES)) {
+    setLocalItem(KEYS.QUIZZES, JSON.stringify([]), true);
   }
 
   // --- One-time fix for Abdulrahman Totanji ---
