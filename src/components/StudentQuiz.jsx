@@ -12,6 +12,40 @@ export default function StudentQuiz({ quiz, student, onComplete }) {
   const [draggedIdx, setDraggedIdx] = useState(null);
   const [showReference, setShowReference] = useState(false);
 
+  // Timer state
+  const [timeLeft, setTimeLeft] = useState(null);
+  const [isTimeUp, setIsTimeUp] = useState(false);
+
+  useEffect(() => {
+    if (!quiz || !quiz.endTime || isFinished) return;
+
+    const calculateTime = () => {
+      const end = new Date(quiz.endTime).getTime();
+      const now = new Date().getTime();
+      const diff = Math.max(0, Math.floor((end - now) / 1000));
+      
+      setTimeLeft(diff);
+
+      if (diff <= 0) {
+        setIsTimeUp(true);
+      }
+    };
+
+    calculateTime(); // Initial check
+    const timer = setInterval(calculateTime, 1000);
+
+    return () => clearInterval(timer);
+  }, [quiz, isFinished]);
+
+  const formatTime = (seconds) => {
+    if (seconds === null) return '--:--';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
   useEffect(() => {
     const currentQ = quiz?.questions?.[currentQuestionIdx];
     if (currentQ && currentQ.type === 'puzzle') {
@@ -132,6 +166,41 @@ export default function StudentQuiz({ quiz, student, onComplete }) {
     );
   }
 
+  if (isTimeUp) {
+    return (
+      <div className="quiz-container" style={{
+        minHeight: '100vh', display: 'flex', flexDirection: 'column', 
+        justifyContent: 'center', alignItems: 'center', padding: '2rem',
+        background: 'linear-gradient(135deg, var(--bg-dark) 0%, #450a0a 100%)',
+        color: '#fff', textAlign: 'center'
+      }}>
+        <div style={{
+          backgroundColor: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(10px)',
+          padding: '3rem 2rem', borderRadius: '1rem', border: '1px solid rgba(255,255,255,0.1)',
+          maxWidth: '500px', width: '100%', animation: 'fadeIn 0.5s ease-out'
+        }}>
+          <h2 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '1rem', color: 'var(--danger)' }}>⏰ انتهى الوقت!</h2>
+          <p style={{ fontSize: '1.2rem', marginBottom: '2rem' }}>
+            حظاً أوفر! لقد انتهى الوقت المخصص لهذا التحدي.
+          </p>
+          <div style={{
+            fontSize: '2rem', fontWeight: 900, color: 'var(--gold)', 
+            marginBottom: '2rem'
+          }}>
+            جمعت: {earnedPoints} نقطة
+          </div>
+          <button 
+            onClick={() => onComplete(earnedPoints)} 
+            className="btn btn-primary" 
+            style={{ fontSize: '1.2rem', padding: '1rem 2rem', width: '100%', borderRadius: '50px' }}
+          >
+            🚀 العودة للبوابة
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="quiz-container" style={{
       minHeight: '100vh', display: 'flex', flexDirection: 'column',
@@ -141,10 +210,26 @@ export default function StudentQuiz({ quiz, student, onComplete }) {
       <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '40vw', height: '40vw', background: 'radial-gradient(circle, rgba(13,148,136,0.1) 0%, transparent 70%)', borderRadius: '50%', zIndex: 0 }} />
       <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '30vw', height: '30vw', background: 'radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%)', borderRadius: '50%', zIndex: 0 }} />
       
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 1, marginBottom: '2rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 1, marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--primary-light)' }}>{quiz.title}</h3>
-        <div style={{ fontSize: '1rem', fontWeight: 700, backgroundColor: 'rgba(255,255,255,0.1)', padding: '0.4rem 1rem', borderRadius: '20px' }}>
-          سؤال {currentQuestionIdx + 1} / {quiz.questions.length}
+        
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          {timeLeft !== null && (
+            <div style={{ 
+              fontSize: '1.2rem', fontWeight: 800, 
+              backgroundColor: timeLeft < 60 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.1)', 
+              color: timeLeft < 60 ? 'var(--danger)' : 'var(--gold)',
+              padding: '0.4rem 1rem', borderRadius: '20px',
+              border: `1px solid ${timeLeft < 60 ? 'var(--danger)' : 'transparent'}`,
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+              animation: timeLeft < 60 ? 'pulse 1s infinite' : 'none'
+            }}>
+              ⏳ {formatTime(timeLeft)}
+            </div>
+          )}
+          <div style={{ fontSize: '1rem', fontWeight: 700, backgroundColor: 'rgba(255,255,255,0.1)', padding: '0.4rem 1rem', borderRadius: '20px' }}>
+            سؤال {currentQuestionIdx + 1} / {quiz.questions.length}
+          </div>
         </div>
       </div>
 
@@ -328,6 +413,11 @@ export default function StudentQuiz({ quiz, student, onComplete }) {
           0% { transform: scale(0.5); opacity: 0; }
           70% { transform: scale(1.2); opacity: 1; }
           100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes pulse {
+          0% { opacity: 1; }
+          50% { opacity: 0.5; }
+          100% { opacity: 1; }
         }
       `}</style>
     </div>
