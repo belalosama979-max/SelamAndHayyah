@@ -1,19 +1,34 @@
 import React, { useState } from 'react';
 import { getQuizzes, saveQuiz, deleteQuiz } from '../db/database';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+
+// دالة مساعدة لرفع الصور كـ Base64
+const handleImageUpload = (e, callback) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onloadend = () => {
+    callback(reader.result);
+  };
+  reader.readAsDataURL(file);
+};
 
 export default function AdminQuizzesTab({ onDataChange }) {
   const [quizzes, setQuizzes] = useState(getQuizzes());
-  const [editingQuiz, setEditingQuiz] = useState(null);
-  
-  // States for new/editing quiz
+  const [editingQuiz, setEditingQuiz] = useState(null); // When managing a quiz's questions
+  const [editingQuizDetailsId, setEditingQuizDetailsId] = useState(null); // When editing quiz title/dates
+
+  // States for new/editing quiz details
   const [quizForm, setQuizForm] = useState({ 
     title: '', 
-    startDate: '', startTime: '', 
-    endDate: '', endTime: '' 
+    startDate: new Date(), 
+    endDate: new Date() 
   });
   
-  // States for new question
+  // States for new/editing question
   const [showQuestionForm, setShowQuestionForm] = useState(false);
+  const [editingQuestionId, setEditingQuestionId] = useState(null);
   const [questionForm, setQuestionForm] = useState({
     id: '', text: '', imageUrl: '', type: 'choice_text', points: 10,
     options: ['', '', '', ''], correctAnswer: 0
@@ -27,43 +42,81 @@ export default function AdminQuizzesTab({ onDataChange }) {
     }
   };
 
-  const handleCreateQuiz = (e) => {
+  const handleCreateOrUpdateQuiz = (e) => {
     e.preventDefault();
-    if (!quizForm.title || !quizForm.startDate || !quizForm.startTime || !quizForm.endDate || !quizForm.endTime) {
+    if (!quizForm.title || !quizForm.startDate || !quizForm.endDate) {
       alert('الرجاء إكمال جميع الحقول');
       return;
     }
     
-    // Combine date and time
-    const startDateTime = new Date(`${quizForm.startDate}T${quizForm.startTime}`);
-    const endDateTime = new Date(`${quizForm.endDate}T${quizForm.endTime}`);
-
     // Validate times
-    if (endDateTime <= startDateTime) {
+    if (quizForm.endDate <= quizForm.startDate) {
       alert('وقت النهاية يجب أن يكون بعد وقت البداية');
       return;
     }
 
-    saveQuiz({
-      title: quizForm.title,
-      startTime: startDateTime.toISOString(),
-      endTime: endDateTime.toISOString(),
-      questions: []
-    });
+    if (editingQuizDetailsId) {
+      const existingQuiz = quizzes.find(q => q.id === editingQuizDetailsId);
+      saveQuiz({
+        ...existingQuiz,
+        title: quizForm.title,
+        startTime: quizForm.startDate.toISOString(),
+        endTime: quizForm.endDate.toISOString()
+      });
+      setEditingQuizDetailsId(null);
+    } else {
+      saveQuiz({
+        title: quizForm.title,
+        startTime: quizForm.startDate.toISOString(),
+        endTime: quizForm.endDate.toISOString(),
+        questions: []
+      });
+    }
     
-    setQuizForm({ title: '', startDate: '', startTime: '', endDate: '', endTime: '' });
+    setQuizForm({ title: '', startDate: new Date(), endDate: new Date() });
     refreshData();
+  };
+
+  const handleEditQuizDetails = (quiz) => {
+    setEditingQuizDetailsId(quiz.id);
+    setQuizForm({
+      title: quiz.title,
+      startDate: new Date(quiz.startTime),
+      endDate: new Date(quiz.endTime)
+    });
+  };
+
+  const cancelEditQuizDetails = () => {
+    setEditingQuizDetailsId(null);
+    setQuizForm({ title: '', startDate: new Date(), endDate: new Date() });
   };
 
   const handleDeleteQuiz = (id) => {
     if (window.confirm('هل أنت متأكد من حذف هذا التحدي بالكامل؟')) {
       deleteQuiz(id);
       if (editingQuiz?.id === id) setEditingQuiz(null);
+      if (editingQuizDetailsId === id) cancelEditQuizDetails();
       refreshData();
     }
   };
 
-  const handleAddQuestion = (e) => {
+  const handleEditQuestion = (question) => {
+    setShowQuestionForm(true);
+    setEditingQuestionId(question.id);
+    
+    // إذا كان نوع السؤال نصي، الخيار الصحيح يكون في options[0]، لكننا نجهزه ليكون متوافقاً مع الفورم
+    setQuestionForm({
+      id: question.id,
+      text: question.text,
+      imageUrl: question.imageUrl || '',
+      type: question.type,
+      points: question.points,
+      options: question.type === 'text' ? [question.correctAnswer, '', '', ''] : [...question.options, '', '', '', ''].slice(0, 4), // نضمن وجود 4 خيارات عالأقل في الواجهة
+      correctAnswer: question.type === 'text' ? 0 : question.correctAnswer
+    });
+  };
+
+  const handleSaveQuestion = (e) => {
     e.preventDefault();
     if (!editingQuiz) return;
     
@@ -73,7 +126,7 @@ export default function AdminQuizzesTab({ onDataChange }) {
     }
 
     const newQuestion = {
-      id: Date.now().toString(),
+      id: editingQuestionId || Date.now().toString(),
       text: questionForm.text,
       imageUrl: questionForm.imageUrl,
       type: questionForm.type,
@@ -87,13 +140,22 @@ export default function AdminQuizzesTab({ onDataChange }) {
       return;
     }
 
+    let updatedQuestions = editingQuiz.questions || [];
+    
+    if (editingQuestionId) {
+      updatedQuestions = updatedQuestions.map(q => q.id === editingQuestionId ? newQuestion : q);
+    } else {
+      updatedQuestions = [...updatedQuestions, newQuestion];
+    }
+
     const updatedQuiz = {
       ...editingQuiz,
-      questions: [...(editingQuiz.questions || []), newQuestion]
+      questions: updatedQuestions
     };
 
     saveQuiz(updatedQuiz);
     setShowQuestionForm(false);
+    setEditingQuestionId(null);
     
     // Reset question form
     setQuestionForm({
@@ -120,11 +182,16 @@ export default function AdminQuizzesTab({ onDataChange }) {
       {!editingQuiz ? (
         <>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', backgroundColor: 'var(--bg-glass)', padding: '1.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>➕ إنشاء تحدي أو لغز جديد</h3>
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              سيظهر هذا التحدي للطلاب تلقائياً عند دخولهم البوابة خلال الوقت المحدد.
-            </p>
-            <form onSubmit={handleCreateQuiz} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>
+              {editingQuizDetailsId ? '✏️ تعديل بيانات التحدي' : '➕ إنشاء تحدي أو لغز جديد'}
+            </h3>
+            {!editingQuizDetailsId && (
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                سيظهر هذا التحدي للطلاب تلقائياً عند دخولهم البوابة خلال الوقت المحدد.
+              </p>
+            )}
+            
+            <form onSubmit={handleCreateOrUpdateQuiz} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div>
                 <label className="form-label">عنوان التحدي</label>
                 <input type="text" required value={quizForm.title} onChange={e => setQuizForm({...quizForm, title: e.target.value})} className="form-input" placeholder="مثال: لغز يوم الجمعة" />
@@ -132,27 +199,41 @@ export default function AdminQuizzesTab({ onDataChange }) {
               
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', backgroundColor: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
                 <div>
-                  <label className="form-label">📅 تاريخ البداية</label>
-                  <input type="date" required value={quizForm.startDate} onChange={e => setQuizForm({...quizForm, startDate: e.target.value})} className="form-input" />
+                  <label className="form-label">📅 وقت وتاريخ البداية</label>
+                  <DatePicker
+                    selected={quizForm.startDate}
+                    onChange={(date) => setQuizForm({ ...quizForm, startDate: date })}
+                    showTimeSelect
+                    timeFormat="HH:mm"
+                    timeIntervals={15}
+                    timeCaption="الوقت"
+                    dateFormat="MMMM d, yyyy h:mm aa"
+                    className="form-input custom-datepicker"
+                  />
                 </div>
                 <div>
-                  <label className="form-label">⏰ وقت البداية (الساعة والدقيقة)</label>
-                  <input type="time" required value={quizForm.startTime} onChange={e => setQuizForm({...quizForm, startTime: e.target.value})} className="form-input" />
+                  <label className="form-label">📅 وقت وتاريخ النهاية</label>
+                  <DatePicker
+                    selected={quizForm.endDate}
+                    onChange={(date) => setQuizForm({ ...quizForm, endDate: date })}
+                    showTimeSelect
+                    timeFormat="HH:mm"
+                    timeIntervals={15}
+                    timeCaption="الوقت"
+                    dateFormat="MMMM d, yyyy h:mm aa"
+                    className="form-input custom-datepicker"
+                  />
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', backgroundColor: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
-                <div>
-                  <label className="form-label">📅 تاريخ النهاية</label>
-                  <input type="date" required value={quizForm.endDate} onChange={e => setQuizForm({...quizForm, endDate: e.target.value})} className="form-input" />
-                </div>
-                <div>
-                  <label className="form-label">⏰ وقت النهاية (الساعة والدقيقة)</label>
-                  <input type="time" required value={quizForm.endTime} onChange={e => setQuizForm({...quizForm, endTime: e.target.value})} className="form-input" />
-                </div>
+              <div style={{ display: 'flex', gap: '1rem' }}>
+                <button type="submit" className="btn btn-primary" style={{ padding: '0.8rem 2rem' }}>
+                  {editingQuizDetailsId ? 'حفظ التعديلات' : 'إضافة التحدي'}
+                </button>
+                {editingQuizDetailsId && (
+                  <button type="button" onClick={cancelEditQuizDetails} className="btn btn-secondary">إلغاء التعديل</button>
+                )}
               </div>
-
-              <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-start', padding: '0.8rem 2rem' }}>إضافة التحدي</button>
             </form>
           </div>
 
@@ -168,7 +249,7 @@ export default function AdminQuizzesTab({ onDataChange }) {
                 const isPast = now > end;
                 
                 return (
-                  <div key={quiz.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-glass)', padding: '1rem', borderRadius: 'var(--radius-sm)', border: `1px solid ${isActive ? 'var(--primary)' : 'var(--border-color)'}` }}>
+                  <div key={quiz.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-glass)', padding: '1rem', borderRadius: 'var(--radius-sm)', border: `1px solid ${isActive ? 'var(--primary)' : 'var(--border-color)'}`, flexWrap: 'wrap', gap: '1rem' }}>
                     <div>
                       <h4 style={{ fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         {quiz.title}
@@ -183,8 +264,9 @@ export default function AdminQuizzesTab({ onDataChange }) {
                         الأسئلة: {quiz.questions?.length || 0}
                       </p>
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button onClick={() => setEditingQuiz(quiz)} className="btn btn-secondary">إدارة الأسئلة</button>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <button onClick={() => setEditingQuiz(quiz)} className="btn btn-primary">إدارة الأسئلة</button>
+                      <button onClick={() => handleEditQuizDetails(quiz)} className="btn btn-secondary">تعديل الموعد</button>
                       <button onClick={() => handleDeleteQuiz(quiz.id)} className="btn btn-danger">حذف</button>
                     </div>
                   </div>
@@ -196,7 +278,7 @@ export default function AdminQuizzesTab({ onDataChange }) {
       ) : (
         // ================= إدارة أسئلة التحدي =================
         <div>
-          <button onClick={() => setEditingQuiz(null)} className="btn btn-secondary" style={{ marginBottom: '1.5rem' }}>
+          <button onClick={() => { setEditingQuiz(null); setShowQuestionForm(false); setEditingQuestionId(null); }} className="btn btn-secondary" style={{ marginBottom: '1.5rem' }}>
             🔙 العودة لقائمة التحديات
           </button>
           
@@ -204,54 +286,68 @@ export default function AdminQuizzesTab({ onDataChange }) {
             <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '0.5rem' }}>إدارة أسئلة: {editingQuiz.title}</h3>
             
             {/* قائمة الأسئلة الحالية */}
-            <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {(!editingQuiz.questions || editingQuiz.questions.length === 0) && (
-                <p style={{ color: 'var(--text-muted)' }}>لم يتم إضافة أي أسئلة بعد.</p>
-              )}
-              {editingQuiz.questions?.map((q, idx) => (
-                <div key={q.id} style={{ padding: '1rem', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <span style={{ fontWeight: 800, color: 'var(--primary)', marginLeft: '0.5rem' }}>س{idx + 1}:</span>
-                      <span style={{ fontWeight: 600 }}>{q.text}</span>
-                      {q.imageUrl && <img src={q.imageUrl} alt="مرفق" style={{ display: 'block', maxHeight: '100px', marginTop: '0.5rem', borderRadius: '4px' }} />}
+            {!showQuestionForm && (
+              <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {(!editingQuiz.questions || editingQuiz.questions.length === 0) && (
+                  <p style={{ color: 'var(--text-muted)' }}>لم يتم إضافة أي أسئلة بعد.</p>
+                )}
+                {editingQuiz.questions?.map((q, idx) => (
+                  <div key={q.id} style={{ padding: '1rem', border: '1px solid var(--border-light)', borderRadius: 'var(--radius-sm)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <span style={{ fontWeight: 800, color: 'var(--primary)', marginLeft: '0.5rem' }}>س{idx + 1}:</span>
+                        <span style={{ fontWeight: 600 }}>{q.text}</span>
+                        {q.imageUrl && <img src={q.imageUrl} alt="مرفق" style={{ display: 'block', maxHeight: '100px', marginTop: '0.5rem', borderRadius: '4px' }} />}
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button onClick={() => handleEditQuestion(q)} className="btn btn-secondary" style={{ padding: '0.3rem 0.5rem', fontSize: '0.8rem' }}>تعديل</button>
+                        <button onClick={() => handleDeleteQuestion(q.id)} className="btn btn-danger" style={{ padding: '0.3rem 0.5rem', fontSize: '0.8rem' }}>حذف</button>
+                      </div>
                     </div>
-                    <button onClick={() => handleDeleteQuestion(q.id)} className="btn btn-danger" style={{ padding: '0.3rem 0.5rem', fontSize: '0.8rem' }}>حذف</button>
+                    <div style={{ marginTop: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      {q.type === 'text' ? (
+                        <p>📝 إجابة كتابية: <strong style={{ color: 'var(--success)' }}>{q.correctAnswer}</strong></p>
+                      ) : (
+                        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                          {q.options.map((opt, optIdx) => (
+                            <li key={optIdx} style={{ 
+                              padding: '0.5rem', 
+                              backgroundColor: q.correctAnswer === optIdx ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-dark)',
+                              color: q.correctAnswer === optIdx ? 'var(--success)' : 'inherit',
+                              border: `1px solid ${q.correctAnswer === optIdx ? 'var(--success)' : 'transparent'}`,
+                              borderRadius: '4px'
+                            }}>
+                              {optIdx + 1}- {q.type === 'choice_image' ? <img src={opt} alt="خيار" style={{ maxHeight: '40px' }} /> : opt}
+                              {q.correctAnswer === optIdx && ' ✓'}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <p style={{ marginTop: '0.5rem', fontWeight: 700, color: 'var(--primary-light)' }}>النقاط: {q.points}</p>
+                    </div>
                   </div>
-                  <div style={{ marginTop: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    {q.type === 'text' ? (
-                      <p>📝 إجابة كتابية: <strong style={{ color: 'var(--success)' }}>{q.correctAnswer}</strong></p>
-                    ) : (
-                      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                        {q.options.map((opt, optIdx) => (
-                          <li key={optIdx} style={{ 
-                            padding: '0.5rem', 
-                            backgroundColor: q.correctAnswer === optIdx ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-dark)',
-                            color: q.correctAnswer === optIdx ? 'var(--success)' : 'inherit',
-                            border: `1px solid ${q.correctAnswer === optIdx ? 'var(--success)' : 'transparent'}`,
-                            borderRadius: '4px'
-                          }}>
-                            {optIdx + 1}- {q.type === 'choice_image' ? <img src={opt} alt="خيار" style={{ maxHeight: '40px' }} /> : opt}
-                            {q.correctAnswer === optIdx && ' ✓'}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    <p style={{ marginTop: '0.5rem', fontWeight: 700, color: 'var(--primary-light)' }}>النقاط: {q.points}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
 
             {/* إضافة سؤال جديد */}
             {!showQuestionForm ? (
-              <button onClick={() => setShowQuestionForm(true)} className="btn btn-primary" style={{ marginTop: '1.5rem', width: '100%' }}>
+              <button onClick={() => {
+                setEditingQuestionId(null);
+                setQuestionForm({
+                  id: '', text: '', imageUrl: '', type: 'choice_text', points: 10,
+                  options: ['', '', '', ''], correctAnswer: 0
+                });
+                setShowQuestionForm(true);
+              }} className="btn btn-primary" style={{ marginTop: '1.5rem', width: '100%' }}>
                 ➕ إضافة سؤال جديد
               </button>
             ) : (
               <div style={{ marginTop: '2rem', padding: '1.5rem', border: '1px dashed var(--primary)', borderRadius: 'var(--radius-sm)' }}>
-                <h4 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '1rem' }}>سؤال جديد</h4>
-                <form onSubmit={handleAddQuestion} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <h4 style={{ fontSize: '1.1rem', fontWeight: 800, marginBottom: '1rem' }}>
+                  {editingQuestionId ? 'تعديل السؤال' : 'سؤال جديد'}
+                </h4>
+                <form onSubmit={handleSaveQuestion} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   
                   <div>
                     <label className="form-label">نص السؤال *</label>
@@ -261,7 +357,14 @@ export default function AdminQuizzesTab({ onDataChange }) {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div>
                       <label className="form-label">صورة مرفقة مع السؤال (اختياري)</label>
-                      <input type="text" value={questionForm.imageUrl} onChange={e => setQuestionForm({...questionForm, imageUrl: e.target.value})} className="form-input" placeholder="رابط صورة (URL)" />
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <input type="text" value={questionForm.imageUrl} onChange={e => setQuestionForm({...questionForm, imageUrl: e.target.value})} className="form-input" placeholder="رابط صورة أو ارفع صورة" />
+                        <label className="btn btn-secondary" style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                          رفع 📁
+                          <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handleImageUpload(e, (base64) => setQuestionForm({...questionForm, imageUrl: base64}))} />
+                        </label>
+                      </div>
+                      {questionForm.imageUrl && <img src={questionForm.imageUrl} alt="preview" style={{ maxHeight: '50px', marginTop: '0.5rem' }} />}
                     </div>
                     <div>
                       <label className="form-label">نقاط السؤال *</label>
@@ -284,7 +387,7 @@ export default function AdminQuizzesTab({ onDataChange }) {
                       <label className="form-label" style={{ marginBottom: '1rem' }}>الخيارات (املأ خيارين على الأقل)</label>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                         {[0, 1, 2, 3].map(i => (
-                          <div key={i} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <div key={i} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.02)', padding: '0.5rem', borderRadius: '4px' }}>
                             <input 
                               type="radio" 
                               name="correctAnswer" 
@@ -292,17 +395,32 @@ export default function AdminQuizzesTab({ onDataChange }) {
                               onChange={() => setQuestionForm({...questionForm, correctAnswer: i})}
                               style={{ width: '1.2rem', height: '1.2rem' }}
                             />
-                            <input 
-                              type={questionForm.type === 'choice_image' ? 'url' : 'text'}
-                              value={questionForm.options[i]}
-                              onChange={e => {
-                                const newOpts = [...questionForm.options];
-                                newOpts[i] = e.target.value;
-                                setQuestionForm({...questionForm, options: newOpts});
-                              }}
-                              className="form-input" 
-                              placeholder={questionForm.type === 'choice_image' ? `رابط صورة الخيار ${i+1}` : `الخيار ${i+1}`}
-                            />
+                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                              <input 
+                                type={questionForm.type === 'choice_image' ? 'text' : 'text'}
+                                value={questionForm.options[i]}
+                                onChange={e => {
+                                  const newOpts = [...questionForm.options];
+                                  newOpts[i] = e.target.value;
+                                  setQuestionForm({...questionForm, options: newOpts});
+                                }}
+                                className="form-input" 
+                                placeholder={questionForm.type === 'choice_image' ? `رابط الصورة ${i+1}` : `الخيار ${i+1}`}
+                              />
+                              {questionForm.type === 'choice_image' && (
+                                <label className="btn btn-secondary" style={{ cursor: 'pointer', textAlign: 'center', fontSize: '0.8rem', padding: '0.3rem' }}>
+                                  أو ارفع صورة 📁
+                                  <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handleImageUpload(e, (base64) => {
+                                    const newOpts = [...questionForm.options];
+                                    newOpts[i] = base64;
+                                    setQuestionForm({...questionForm, options: newOpts});
+                                  })} />
+                                </label>
+                              )}
+                              {questionForm.type === 'choice_image' && questionForm.options[i] && (
+                                <img src={questionForm.options[i]} alt="preview" style={{ maxHeight: '40px', objectFit: 'contain' }} />
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -328,8 +446,8 @@ export default function AdminQuizzesTab({ onDataChange }) {
                   )}
 
                   <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                    <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>حفظ السؤال</button>
-                    <button type="button" onClick={() => setShowQuestionForm(false)} className="btn btn-secondary">إلغاء</button>
+                    <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>{editingQuestionId ? 'حفظ التعديلات' : 'حفظ السؤال'}</button>
+                    <button type="button" onClick={() => { setShowQuestionForm(false); setEditingQuestionId(null); }} className="btn btn-secondary">إلغاء</button>
                   </div>
                 </form>
               </div>

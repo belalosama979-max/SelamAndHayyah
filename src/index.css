@@ -1121,3 +1121,52 @@ svg {
     min-height: 40px;
   }
 }
+
+/* =========================================================
+   React DatePicker Custom Dark Theme
+   ========================================================= */
+.react-datepicker-wrapper {
+  width: 100%;
+}
+.react-datepicker {
+  background-color: var(--bg-dark) !important;
+  border: 1px solid var(--border-color) !important;
+  font-family: inherit !important;
+  color: #fff !important;
+  border-radius: var(--radius-sm) !important;
+}
+.react-datepicker__header {
+  background-color: var(--bg-glass) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+.react-datepicker__current-month, .react-datepicker-time__header, .react-datepicker-year-header {
+  color: #fff !important;
+}
+.react-datepicker__day-name, .react-datepicker__day, .react-datepicker__time-name {
+  color: var(--text-secondary) !important;
+}
+.react-datepicker__day:hover {
+  background-color: var(--primary) !important;
+  color: #fff !important;
+}
+.react-datepicker__day--selected, .react-datepicker__day--in-selecting-range, .react-datepicker__day--in-range, .react-datepicker__month-text--selected, .react-datepicker__month-text--in-selecting-range, .react-datepicker__month-text--in-range, .react-datepicker__quarter-text--selected, .react-datepicker__quarter-text--in-selecting-range, .react-datepicker__quarter-text--in-range, .react-datepicker__year-text--selected, .react-datepicker__year-text--in-selecting-range, .react-datepicker__year-text--in-range {
+  background-color: var(--primary) !important;
+  color: #fff !important;
+}
+.react-datepicker__time-container {
+  border-left: 1px solid var(--border-color) !important;
+}
+.react-datepicker__time-container .react-datepicker__time .react-datepicker__time-box ul.react-datepicker__time-list li.react-datepicker__time-list-item {
+  background-color: var(--bg-dark) !important;
+  color: var(--text-secondary) !important;
+}
+.react-datepicker__time-container .react-datepicker__time .react-datepicker__time-box ul.react-datepicker__time-list li.react-datepicker__time-list-item:hover {
+  background-color: rgba(255,255,255,0.1) !important;
+}
+.react-datepicker__time-container .react-datepicker__time .react-datepicker__time-box ul.react-datepicker__time-list li.react-datepicker__time-list-item--selected {
+  background-color: var(--primary) !important;
+  color: #fff !important;
+}
+.custom-datepicker {
+  width: 100%;
+}
