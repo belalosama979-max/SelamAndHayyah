@@ -222,6 +222,10 @@ export default function ParentPortal() {
     }
   };
 
+  if (activeQuiz && student) {
+    return <StudentQuiz quiz={activeQuiz} student={student} onComplete={handleQuizComplete} />;
+  }
+
   return (
     <div style={{
       width: '100vw',

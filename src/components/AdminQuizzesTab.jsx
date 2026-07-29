@@ -3,13 +3,41 @@ import { getQuizzes, saveQuiz, deleteQuiz } from '../db/database';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 
-// دالة مساعدة لرفع الصور كـ Base64
+// دالة مساعدة لرفع الصور كـ Base64 مع ضغط الصورة لتجنب مشكلة سعة التخزين
 const handleImageUpload = (e, callback) => {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onloadend = () => {
-    callback(reader.result);
+  reader.onload = (event) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const MAX_WIDTH = 400;
+      const MAX_HEIGHT = 400;
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > MAX_WIDTH) {
+          height = Math.round(height * (MAX_WIDTH / width));
+          width = MAX_WIDTH;
+        }
+      } else {
+        if (height > MAX_HEIGHT) {
+          width = Math.round(width * (MAX_HEIGHT / height));
+          height = MAX_HEIGHT;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.7); // ضغط بجودة 70%
+      callback(dataUrl);
+    };
+    img.src = event.target.result;
   };
   reader.readAsDataURL(file);
 };
@@ -31,7 +59,7 @@ export default function AdminQuizzesTab({ onDataChange }) {
   const [editingQuestionId, setEditingQuestionId] = useState(null);
   const [questionForm, setQuestionForm] = useState({
     id: '', text: '', imageUrl: '', type: 'choice_text', points: 10,
-    options: ['', '', '', ''], correctAnswer: 0
+    options: ['', '', '', ''], correctAnswer: 0, gridColumns: 2
   });
 
   const refreshData = () => {
@@ -111,8 +139,11 @@ export default function AdminQuizzesTab({ onDataChange }) {
       imageUrl: question.imageUrl || '',
       type: question.type,
       points: question.points,
-      options: question.type === 'text' ? [question.correctAnswer, '', '', ''] : [...question.options, '', '', '', ''].slice(0, 4), // نضمن وجود 4 خيارات عالأقل في الواجهة
-      correctAnswer: question.type === 'text' ? 0 : question.correctAnswer
+      options: question.type === 'text' 
+        ? [question.correctAnswer, '', '', ''] 
+        : (question.type === 'puzzle' ? question.options : [...question.options, '', '', '', ''].slice(0, 4)),
+      correctAnswer: question.type === 'text' ? 0 : question.correctAnswer,
+      gridColumns: question.gridColumns || 2
     });
   };
 
@@ -132,11 +163,17 @@ export default function AdminQuizzesTab({ onDataChange }) {
       type: questionForm.type,
       points: Number(questionForm.points),
       options: questionForm.type === 'text' ? [] : questionForm.options.filter(o => o.trim() !== ''),
-      correctAnswer: questionForm.type === 'text' ? questionForm.options[0] : Number(questionForm.correctAnswer)
+      correctAnswer: questionForm.type === 'text' ? questionForm.options[0] : Number(questionForm.correctAnswer),
+      gridColumns: Number(questionForm.gridColumns)
     };
 
-    if (questionForm.type !== 'text' && newQuestion.options.length < 2) {
+    if (questionForm.type !== 'text' && questionForm.type !== 'puzzle' && newQuestion.options.length < 2) {
       alert('الرجاء إدخال خيارين على الأقل');
+      return;
+    }
+    
+    if (questionForm.type === 'puzzle' && newQuestion.options.length < 4) {
+      alert('الرجاء إضافة 4 قطع على الأقل للعبة التركيب');
       return;
     }
 
@@ -378,11 +415,57 @@ export default function AdminQuizzesTab({ onDataChange }) {
                       <option value="choice_text">خيارات متعددة (نص)</option>
                       <option value="choice_image">خيارات متعددة (صور)</option>
                       <option value="text">إجابة كتابية (يكتبها الطالب)</option>
+                      <option value="puzzle">لعبة تركيب صور (Jigsaw)</option>
                     </select>
                   </div>
 
                   {/* Options Input */}
-                  {questionForm.type !== 'text' ? (
+                  {questionForm.type === 'puzzle' ? (
+                    <div style={{ backgroundColor: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '4px' }}>
+                      <label className="form-label" style={{ marginBottom: '1rem' }}>قطع التركيب (ارفع القطع بالترتيب الصحيح)</label>
+                      <div style={{ marginBottom: '1rem' }}>
+                        <label className="form-label" style={{ fontSize: '0.85rem' }}>عدد الأعمدة في الشبكة:</label>
+                        <select value={questionForm.gridColumns} onChange={e => setQuestionForm({...questionForm, gridColumns: e.target.value})} className="form-input" style={{ width: '150px' }}>
+                          <option value="2">2 أعمدة (شبكة 2×2 مثلاً)</option>
+                          <option value="3">3 أعمدة (شبكة 3×3 مثلاً)</option>
+                          <option value="4">4 أعمدة (شبكة 4×4 مثلاً)</option>
+                        </select>
+                      </div>
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                        {questionForm.options.map((opt, i) => (
+                          <div key={i} style={{ position: 'relative', border: '1px dashed var(--border-light)', borderRadius: '4px', overflow: 'hidden', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {opt ? (
+                              <>
+                                <img src={opt} alt={`قطعة ${i+1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                <button type="button" onClick={() => {
+                                  const newOpts = [...questionForm.options];
+                                  newOpts.splice(i, 1);
+                                  setQuestionForm({...questionForm, options: newOpts});
+                                }} style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(255,0,0,0.8)', color: '#fff', border: 'none', borderRadius: '50%', width: '20px', height: '20px', cursor: 'pointer', fontSize: '10px' }}>X</button>
+                              </>
+                            ) : (
+                              <input type="text" value={opt} onChange={e => {
+                                const newOpts = [...questionForm.options];
+                                newOpts[i] = e.target.value;
+                                setQuestionForm({...questionForm, options: newOpts});
+                              }} placeholder="رابط" style={{ width: '100%', border: 'none', background: 'transparent', color: '#fff', padding: '5px' }} />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <div style={{ display: 'flex', gap: '1rem' }}>
+                        <label className="btn btn-primary" style={{ cursor: 'pointer' }}>
+                          ➕ رفع قطعة جديدة
+                          <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => handleImageUpload(e, (base64) => {
+                            setQuestionForm({...questionForm, options: [...questionForm.options.filter(o => o.trim() !== ''), base64]});
+                          })} />
+                        </label>
+                      </div>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>سيقوم النظام ببعثرة القطع عشوائياً للطالب، وسيتعين عليه إعادتها لهذا الترتيب.</p>
+                    </div>
+                  ) : questionForm.type !== 'text' ? (
                     <div style={{ backgroundColor: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '4px' }}>
                       <label className="form-label" style={{ marginBottom: '1rem' }}>الخيارات (املأ خيارين على الأقل)</label>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>

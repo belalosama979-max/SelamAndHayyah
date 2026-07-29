@@ -7,6 +7,29 @@ export default function StudentQuiz({ quiz, student, onComplete }) {
   const [feedback, setFeedback] = useState(null); // null | 'correct' | 'wrong'
   const [textAnswer, setTextAnswer] = useState('');
 
+  // Puzzle state
+  const [puzzlePieces, setPuzzlePieces] = useState([]);
+  const [draggedIdx, setDraggedIdx] = useState(null);
+  const [showReference, setShowReference] = useState(false);
+
+  useEffect(() => {
+    const currentQ = quiz?.questions?.[currentQuestionIdx];
+    if (currentQ && currentQ.type === 'puzzle') {
+      const pieces = currentQ.options.map((src, idx) => ({ id: idx, src }));
+      // Shuffle array securely
+      for (let i = pieces.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pieces[i], pieces[j]] = [pieces[j], pieces[i]];
+      }
+      // Ensure it's not solved initially (very rare but possible for small grids)
+      if (pieces.length > 1 && pieces.every((p, i) => p.id === i)) {
+        [pieces[0], pieces[1]] = [pieces[1], pieces[0]];
+      }
+      setPuzzlePieces(pieces);
+      setShowReference(false);
+    }
+  }, [currentQuestionIdx, quiz]);
+
   if (!quiz || !quiz.questions || quiz.questions.length === 0) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center', color: '#fff' }}>
@@ -23,8 +46,9 @@ export default function StudentQuiz({ quiz, student, onComplete }) {
 
     let isCorrect = false;
     if (currentQuestion.type === 'text') {
-      // Text answers: ignore leading/trailing spaces
       isCorrect = answerValue.trim() === currentQuestion.correctAnswer.trim();
+    } else if (currentQuestion.type === 'puzzle') {
+      isCorrect = answerValue === true; // For puzzle, we pass true if they solved it
     } else {
       isCorrect = answerValue === currentQuestion.correctAnswer;
     }
@@ -45,6 +69,32 @@ export default function StudentQuiz({ quiz, student, onComplete }) {
         setIsFinished(true);
       }
     }, 2000);
+  };
+
+  const handleDragStart = (e, idx) => {
+    setDraggedIdx(idx);
+    e.dataTransfer.effectAllowed = "move";
+    // For Firefox
+    e.dataTransfer.setData("text/plain", idx);
+  };
+
+  const handleDrop = (e, targetIdx) => {
+    e.preventDefault();
+    if (draggedIdx === null || draggedIdx === targetIdx) return;
+
+    const newPieces = [...puzzlePieces];
+    const temp = newPieces[draggedIdx];
+    newPieces[draggedIdx] = newPieces[targetIdx];
+    newPieces[targetIdx] = temp;
+    
+    setPuzzlePieces(newPieces);
+    setDraggedIdx(null);
+
+    // Check win condition
+    const isWin = newPieces.every((p, i) => p.id === i);
+    if (isWin) {
+      handleAnswer(true);
+    }
   };
 
   if (isFinished) {
@@ -88,11 +138,9 @@ export default function StudentQuiz({ quiz, student, onComplete }) {
       background: 'linear-gradient(135deg, var(--bg-dark) 0%, #0f172a 100%)',
       color: '#fff', padding: '1.5rem', position: 'relative', overflow: 'hidden'
     }}>
-      {/* Background decorations */}
       <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '40vw', height: '40vw', background: 'radial-gradient(circle, rgba(13,148,136,0.1) 0%, transparent 70%)', borderRadius: '50%', zIndex: 0 }} />
       <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '30vw', height: '30vw', background: 'radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%)', borderRadius: '50%', zIndex: 0 }} />
       
-      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 1, marginBottom: '2rem' }}>
         <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--primary-light)' }}>{quiz.title}</h3>
         <div style={{ fontSize: '1rem', fontWeight: 700, backgroundColor: 'rgba(255,255,255,0.1)', padding: '0.4rem 1rem', borderRadius: '20px' }}>
@@ -100,7 +148,6 @@ export default function StudentQuiz({ quiz, student, onComplete }) {
         </div>
       </div>
 
-      {/* Question Card */}
       <div style={{
         flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 1,
         animation: 'slideUp 0.4s ease-out'
@@ -114,7 +161,7 @@ export default function StudentQuiz({ quiz, student, onComplete }) {
             {currentQuestion.text}
           </h2>
           
-          {currentQuestion.imageUrl && (
+          {currentQuestion.imageUrl && currentQuestion.type !== 'puzzle' && (
             <img 
               src={currentQuestion.imageUrl} 
               alt="صورة السؤال" 
@@ -126,8 +173,70 @@ export default function StudentQuiz({ quiz, student, onComplete }) {
             🎁 قيمة السؤال: {currentQuestion.points} نقطة
           </div>
 
-          {/* Options */}
-          {currentQuestion.type === 'text' ? (
+          {currentQuestion.type === 'puzzle' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                <p style={{ color: 'var(--text-secondary)' }}>اسحب القطع لتبديل أماكنها لترتيب الصورة بشكل صحيح!</p>
+                {currentQuestion.imageUrl && (
+                  <button onClick={() => setShowReference(!showReference)} className="btn btn-secondary" style={{ padding: '0.3rem 0.8rem', fontSize: '0.85rem' }}>
+                    {showReference ? 'إخفاء المرجع' : '👁️ عرض المرجع'}
+                  </button>
+                )}
+              </div>
+              
+              {showReference && currentQuestion.imageUrl && (
+                <div style={{ animation: 'fadeIn 0.3s' }}>
+                  <img src={currentQuestion.imageUrl} alt="الشكل النهائي" style={{ maxHeight: '150px', borderRadius: '8px', border: '2px solid var(--primary-light)' }} />
+                </div>
+              )}
+
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: `repeat(${currentQuestion.gridColumns || 2}, 1fr)`, 
+                gap: '4px', 
+                backgroundColor: 'rgba(0,0,0,0.3)', 
+                padding: '4px', 
+                borderRadius: '8px',
+                width: '100%',
+                maxWidth: '400px'
+              }}>
+                {puzzlePieces.map((piece, idx) => (
+                  <div
+                    key={idx}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, idx)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => handleDrop(e, idx)}
+                    style={{
+                      aspectRatio: '1',
+                      border: draggedIdx === idx ? '2px solid var(--gold)' : '1px solid rgba(255,255,255,0.2)',
+                      borderRadius: '4px',
+                      overflow: 'hidden',
+                      cursor: 'grab',
+                      opacity: draggedIdx === idx ? 0.5 : 1,
+                      backgroundColor: 'rgba(255,255,255,0.05)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'border 0.2s'
+                    }}
+                    onDragOverCapture={(e) => {
+                      e.currentTarget.style.border = '2px dashed var(--primary)';
+                    }}
+                    onDragLeave={(e) => {
+                      e.currentTarget.style.border = draggedIdx === idx ? '2px solid var(--gold)' : '1px solid rgba(255,255,255,0.2)';
+                    }}
+                  >
+                    {piece.src ? (
+                      <img src={piece.src} alt={`قطعة`} style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)' }}>؟</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : currentQuestion.type === 'text' ? (
             <form onSubmit={(e) => { e.preventDefault(); handleAnswer(textAnswer); }} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <input 
                 type="text" 
@@ -185,7 +294,6 @@ export default function StudentQuiz({ quiz, student, onComplete }) {
         </div>
       </div>
 
-      {/* Feedback Overlay */}
       {feedback && (
         <div style={{
           position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
