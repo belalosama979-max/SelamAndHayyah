@@ -1,6 +1,7 @@
 import AvatarDisplay from './AvatarDisplay';
 import React, { useState, useEffect, useMemo } from 'react';
 import { getAllPlayers, getRooms, getAllLogs, getBoardEvents, getAllPrizeRequests, getRewards, orderPrize, savePlayer } from '../db/database';
+import { getRemainingPoints } from '../utils/helpers';
 import Board from './Board';
 
 export default function ParentPortal() {
@@ -347,7 +348,7 @@ export default function ParentPortal() {
                   </div>
                   <div className="stat-card" style={{ padding: '1.5rem' }}>
                     <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>النقاط المتبقية للختمة</div>
-                    <div style={{ fontSize: '2.5rem', fontWeight: 900, color: 'var(--text-primary)' }}>{Math.max(0, 7000 - student.points)}</div>
+                    <div style={{ fontSize: '2.5rem', fontWeight: 900, color: 'var(--text-primary)' }}>{student.progressPercentage >= 100 ? '🏆' : Math.max(0, getRemainingPoints(student.points))}</div>
                   </div>
                   <div className="stat-card" style={{ padding: '1.5rem' }}>
                     <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>نسبة التقدم</div>

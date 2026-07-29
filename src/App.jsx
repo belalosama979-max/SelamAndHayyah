@@ -5,7 +5,7 @@ import {
   getRooms, saveRoom, archiveRoom, deleteRoom,
   getPlayers, savePlayer,
   getCards, getBoardEvents, getLogs, applyCardToPlayer, undoLastLog, initDatabase,
-  recordPlayerVisit
+  recordPlayerVisit, getGameSettings
 } from './db/database';
 import RoomSummary from './components/RoomSummary';
 import Board from './components/Board';
@@ -796,7 +796,7 @@ export default function App() {
             
             <p style={{ fontSize: '1.15rem', color: 'var(--text-primary)', lineHeight: 1.5 }}>
               نهنئ البطل المتميز <strong style={{ color: 'var(--primary-hover)', fontSize: '1.4rem' }}>{winnerName}</strong> <br />
-              لوصوله للهدف واجتيازه <strong style={{ color: 'var(--gold)' }}>7000 نقطة</strong> بنجاح وتفوق.
+              لوصوله للهدف واجتيازه <strong style={{ color: 'var(--gold)' }}>{getGameSettings().targetPoints.toLocaleString()} نقطة</strong> بنجاح وتفوق.
             </p>
 
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>

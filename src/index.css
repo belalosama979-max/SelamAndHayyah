@@ -980,3 +980,150 @@ html, body {
     padding: 0 1rem;
   }
 }
+
+/* ======================================================== */
+/* iOS / SAFARI FIXES                                        */
+/* ======================================================== */
+
+/* Fix 100vh on iOS (Safari URL bar eats into viewport) */
+html {
+  height: -webkit-fill-available;
+}
+
+body {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  /* Prevent overscroll bounce that can break fixed elements */
+  overscroll-behavior: none;
+  /* Prevent text resize on orientation change */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Safe area insets for iPhone X+ notch */
+.app-navbar {
+  padding-top: max(0.75rem, calc(0.75rem + env(safe-area-inset-top)));
+  padding-right: max(1rem, calc(1rem + env(safe-area-inset-right)));
+  padding-left: max(1rem, calc(1rem + env(safe-area-inset-left)));
+}
+
+footer {
+  padding-bottom: max(1rem, calc(1rem + env(safe-area-inset-bottom)));
+}
+
+/* Fix iOS input zoom: font-size must be >= 16px to prevent auto-zoom */
+.form-input,
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+input[type="url"],
+input[type="search"],
+select,
+textarea {
+  font-size: 16px !important;
+}
+
+/* On large screens, revert to responsive size */
+@media (min-width: 640px) {
+  .form-input,
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  select,
+  textarea {
+    font-size: var(--text-base) !important;
+  }
+}
+
+/* Fix -webkit-backdrop-filter for iOS Safari */
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  .glass-panel {
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+  .mobile-nav-backdrop {
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay {
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+  }
+}
+
+/* Tap highlight removal for all interactive elements on iOS */
+a, button, input, select, textarea, label {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Fix for position:fixed on iOS with virtual keyboard */
+.modal-overlay {
+  position: fixed;
+  /* Use dvh if available for better iOS support */
+  height: 100dvh;
+}
+@supports not (height: 100dvh) {
+  .modal-overlay {
+    height: 100vh;
+    height: -webkit-fill-available;
+  }
+}
+
+/* Fix fullscreen board on iOS */
+.fullscreen-board {
+  height: 100dvh;
+}
+@supports not (height: 100dvh) {
+  .fullscreen-board {
+    height: 100vh;
+    height: -webkit-fill-available;
+  }
+}
+
+/* Smooth scrolling on iOS */
+.mobile-nav-panel,
+.admin-content,
+.modal-box,
+.mobile-cards-drawer-body {
+  -webkit-overflow-scrolling: touch;
+  overflow-y: auto;
+}
+
+/* Prevent text selection on buttons (iOS annoyance) */
+button, .btn {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Fix SVG rendering on iOS */
+svg {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+/* Parent portal layout min-height fix for iOS */
+.parent-portal-layout {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+}
+
+/* Touch-friendly targets (WCAG AA minimum 44x44) */
+@media (max-width: 640px) {
+  .btn {
+    min-height: 48px;
+    min-width: 48px;
+  }
+  .form-input, select {
+    min-height: 48px;
+  }
+  /* Improve tap targets for small buttons */
+  button[style*="padding: '0.3rem"] {
+    min-height: 40px;
+  }
+}

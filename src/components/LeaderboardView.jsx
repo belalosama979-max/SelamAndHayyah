@@ -170,9 +170,9 @@ export default function LeaderboardView({ onBack }) {
                   <td style={{ padding: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <div style={{ flex: 1, height: '8px', backgroundColor: 'var(--bg-secondary)', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${Math.min(100, (player.points/7000)*100)}%`, backgroundColor: 'var(--primary)' }} />
+                        <div style={{ height: '100%', width: `${player.progressPercentage || 0}%`, backgroundColor: 'var(--primary)' }} />
                       </div>
-                      <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{Math.min(100, Math.round((player.points/7000)*100))}%</span>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{player.progressPercentage || 0}%</span>
                     </div>
                   </td>
                   <td style={{ padding: '1rem', fontWeight: sortMode === 'journey' ? 900 : 700, color: '#93c5fd', fontSize: sortMode === 'journey' ? '1.2rem' : '1rem' }}>

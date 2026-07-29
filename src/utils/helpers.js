@@ -16,9 +16,15 @@ export const getRankEmoji = (rank) => {
   return `${rank}`;
 };
 
-// حساب النقاط المتبقية للوصول إلى 7000
+// حساب النقاط المتبقية للوصول إلى الهدف (يقرأ من الإعدادات ديناميكياً)
 export const getRemainingPoints = (points) => {
-  return Math.max(0, 7000 - points);
+  try {
+    const stored = localStorage.getItem('aqsa_game_settings');
+    const target = stored ? (JSON.parse(stored).targetPoints || 8500) : 8500;
+    return Math.max(0, target - points);
+  } catch(e) {
+    return Math.max(0, 8500 - points);
+  }
 };
 
 // تنسيق التاريخ إلى اللغة العربية الفصحى

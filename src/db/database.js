@@ -24,10 +24,43 @@ const KEYS = {
   EVENTS: 'aqsa_game_board_events',
   LOGS: 'aqsa_game_action_logs',
   REWARDS: 'aqsa_game_rewards',
-  PRIZE_REQUESTS: 'aqsa_game_prize_requests'
+  PRIZE_REQUESTS: 'aqsa_game_prize_requests',
+  SETTINGS: 'aqsa_game_settings'
 };
 
 let syncStarted = false;
+
+// ================================================================
+// إعدادات اللعبة العامة (الهدف وسعة الخريطة)
+// ================================================================
+const DEFAULT_SETTINGS = {
+  targetPoints: 8500,
+  boardSize: 100,
+};
+
+export const getGameSettings = () => {
+  try {
+    const stored = localStorage.getItem(KEYS.SETTINGS);
+    if (stored) return { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
+  } catch(e) {}
+  return { ...DEFAULT_SETTINGS };
+};
+
+// نقاط خطوة واحدة على الخريطة = الهدف / عدد الخانات
+const getPointsPerStep = () => {
+  const { targetPoints, boardSize } = getGameSettings();
+  return targetPoints / boardSize;
+};
+
+export const saveGameSettings = (newSettings) => {
+  const merged = { ...DEFAULT_SETTINGS, ...getGameSettings(), ...newSettings };
+  localStorage.setItem(KEYS.SETTINGS, JSON.stringify(merged));
+  if (syncStarted) {
+    setDoc(doc(db, 'data', KEYS.SETTINGS), { value: JSON.stringify(merged), lastUpdated: Date.now() }).catch(console.error);
+  }
+  // إعادة حساب مواقع وتقدم جميع الطلاب تلقائياً بناءً على الإعداد الجديد
+  recalculateAllPlayers();
+};
 
 const setLocalItem = (key, value, isInit = false) => {
   localStorage.setItem(key, value);
@@ -159,16 +192,18 @@ export const initDatabase = () => {
           updated = true;
         }
         
-        // إعادة حساب نسبة التقدم الصحيحة بناءً على الهدف الجديد 7000
-        const correctProgress = Math.min(100, Math.round(((p.points || 0) / 7000) * 100));
+        // إعادة حساب نسبة التقدم الصحيحة بناءً على الهدف الحالي
+        const _tp = getGameSettings().targetPoints;
+        const _bs = getGameSettings().boardSize;
+        const _pps = _tp / _bs;
+        const correctProgress = Math.min(100, Math.round(((p.points || 0) / _tp) * 100));
         if (p.progressPercentage !== correctProgress) {
           p.progressPercentage = correctProgress;
           updated = true;
         }
 
-        // تحديث الموقع الحالي بناءً على القاعدة الجديدة (70 نقطة لكل خطوة بدلاً من 60)
-        // هذا يضمن أن مواقع الطلاب على الخريطة متناسقة مع نقاطهم والهدف 7000
-        const expectedPosition = Math.min(100, 1 + Math.floor((p.points || 0) / 70));
+        // تحديث الموقع الحالي بناءً على الإعداد الديناميكي
+        const expectedPosition = Math.min(_bs, 1 + Math.floor((p.points || 0) / _pps));
         if (p.position !== expectedPosition) {
            p.position = expectedPosition;
            updated = true;
@@ -255,14 +290,16 @@ export const initDatabase = () => {
 
           const eventsStr = localStorage.getItem(KEYS.EVENTS);
           const events = eventsStr ? JSON.parse(eventsStr) : [];
+          const { targetPoints: ftp, boardSize: fbs } = getGameSettings();
+          const fpps = ftp / fbs;
 
           playerLogs.forEach(log => {
-            points = Math.max(0, Math.min(7000, points + log.pointsApplied));
+            points = Math.max(0, Math.min(ftp, points + log.pointsApplied));
             totalCollectedPoints = Math.max(0, totalCollectedPoints + log.pointsApplied);
             
-            let tempPos = 1 + Math.floor(points / 70);
-            if (tempPos > 100) {
-              tempPos = 100;
+            let tempPos = 1 + Math.floor(points / fpps);
+            if (tempPos > fbs) {
+              tempPos = fbs;
               hasFinished = true;
             }
             position = tempPos;
@@ -270,11 +307,11 @@ export const initDatabase = () => {
             const ev = events.find(e => e.startPosition === position);
             if (ev) {
               position = ev.endPosition;
-              if (ev.endPosition === 100) {
-                points = 7000;
+              if (ev.endPosition === fbs) {
+                points = ftp;
                 hasFinished = true;
               } else {
-                points = (ev.endPosition - 1) * 70;
+                points = (ev.endPosition - 1) * fpps;
               }
             }
             lastCardApplied = log.cardName;
@@ -315,7 +352,7 @@ export const saveRoom = (room) => {
     const { id, ...roomData } = room;
     rooms.push({
       id: generateId(),
-      targetPoints: 7000,
+      targetPoints: getGameSettings().targetPoints,
       status: 'active',
       winnerId: null,
       maxPlayers: roomData.maxPlayers || 10,
@@ -453,9 +490,10 @@ export const recalculateRanks = (roomId) => {
   // ترتيب اللاعبين تنازلياً حسب النقاط
   roomPlayers.sort((a, b) => b.points - a.points);
   
+  const { targetPoints: rtp } = getGameSettings();
   roomPlayers.forEach((player, index) => {
     player.rank = index + 1;
-    player.progressPercentage = Math.min(100, Math.round((player.points / 7000) * 100));
+    player.progressPercentage = Math.min(100, Math.round((player.points / rtp) * 100));
   });
 
   // تحديث اللاعبين في المصفوفة الشاملة
@@ -468,6 +506,36 @@ export const recalculateRanks = (roomId) => {
   });
 
   setLocalItem(KEYS.PLAYERS, JSON.stringify(updatedAllPlayers));
+};
+
+// إعادة حساب مواقع وتقدم جميع الطلاب عند تغيير إعدادات اللعبة
+export const recalculateAllPlayers = () => {
+  try {
+    const allPlayersStr = localStorage.getItem(KEYS.PLAYERS);
+    if (!allPlayersStr) return;
+    const allPlayers = JSON.parse(allPlayersStr);
+    const { targetPoints, boardSize } = getGameSettings();
+    const pps = targetPoints / boardSize;
+
+    const updated = allPlayers.map(p => {
+      const pts = p.points || 0;
+      const newProgress = Math.min(100, Math.round((pts / targetPoints) * 100));
+      const newPosition = Math.min(boardSize, 1 + Math.floor(pts / pps));
+      return { ...p, progressPercentage: newProgress, position: newPosition };
+    });
+
+    setLocalItem(KEYS.PLAYERS, JSON.stringify(updated));
+
+    // إعادة حساب الرتب لكل غرفة
+    const roomsStr = localStorage.getItem(KEYS.ROOMS);
+    if (roomsStr) {
+      JSON.parse(roomsStr).forEach(room => recalculateRanks(room.id));
+    }
+    // إطلاق حدث التحديث لإعادة رسم واجهة المستخدم
+    window.dispatchEvent(new Event('db_sync'));
+  } catch(e) {
+    console.error('recalculateAllPlayers error:', e);
+  }
 };
 
 // --- عمليات السلالم والأفاعي (BoardEvents) ---
@@ -732,18 +800,17 @@ export const applyCardToPlayer = (roomId, playerId, cardId, customValue = null) 
   const oldPoints = player.points;
   const oldPosition = player.position;
 
-  // تحديث نقاط اللاعب (بين 0 و 7000)
-  let newPoints = Math.max(0, Math.min(7000, player.points + pointsApplied));
+  // تحديث نقاط اللاعب (بين 0 والهدف الأقصى)
+  const { targetPoints: tp, boardSize: bs } = getGameSettings();
+  const pps = tp / bs;
+  let newPoints = Math.max(0, Math.min(tp, player.points + pointsApplied));
   player.points = newPoints;
   player.lastCardApplied = card.name;
   player.updatedAt = new Date().toISOString();
 
-  // حساب الخانة التقديرية (بين 1 و 100)
-  // النقطة 0 -> خانة 1
-  // النقطة 7000 -> خانة 100
-  // كل 70 نقطة تمثل خطوة (خانة) واحدة على الخريطة تبدأ من 1 وتنتهي عند 100
-  let tentativePosition = 1 + Math.floor(newPoints / 70);
-  if (tentativePosition > 100) tentativePosition = 100;
+  // حساب الخانة التقديرية (بين 1 وعدد خانات الخريطة)
+  let tentativePosition = 1 + Math.floor(newPoints / pps);
+  if (tentativePosition > bs) tentativePosition = bs;
   player.position = tentativePosition;
 
   // التحقق من حدوث حدث على اللوحة (سلم أو أفعى)
@@ -762,19 +829,19 @@ export const applyCardToPlayer = (roomId, playerId, cardId, customValue = null) 
     player.position = boardEvent.endPosition;
     
     // تعديل النقاط لتطابق الخانة الجديدة
-    if (boardEvent.endPosition === 100) {
-      player.points = 7000;
+    if (boardEvent.endPosition === bs) {
+      player.points = tp;
     } else {
-      player.points = (boardEvent.endPosition - 1) * 70;
+      player.points = (boardEvent.endPosition - 1) * pps;
     }
   }
 
   // التحقق من حالة الفوز
   let isNewWinner = false;
-  if (player.points >= 7000 && !player.hasFinished) {
+  if (player.points >= tp && !player.hasFinished) {
     player.hasFinished = true;
-    player.points = 7000;
-    player.position = 100;
+    player.points = tp;
+    player.position = bs;
     
     // إذا لم يكن هناك فائز في هذه الغرفة بعد، يتم تسجيله
     if (!room.winnerId) {
@@ -782,7 +849,7 @@ export const applyCardToPlayer = (roomId, playerId, cardId, customValue = null) 
       room.status = 'finished';
       isNewWinner = true;
     }
-  } else if (player.points < 7000) {
+  } else if (player.points < tp) {
     player.hasFinished = false;
     // إذا كان هو الفائز المسجل وتراجعت نقاطه، يتم إخلاء خانة الفائز وتنشيط الغرفة مجدداً
     if (room.winnerId === player.id) {
@@ -861,18 +928,20 @@ export const undoLastLog = (roomId) => {
     let hasFinished = false;
 
     const events = getBoardEvents();
+    const { targetPoints: utp, boardSize: ubs } = getGameSettings();
+    const upps = utp / ubs;
 
     playerLogs.forEach(log => {
       // نطبق التعديل التراكمي على نقاط اللعبة
-      points = Math.max(0, Math.min(7000, points + log.pointsApplied));
+      points = Math.max(0, Math.min(utp, points + log.pointsApplied));
 
       // نقاط المتجر تتأثر فقط بقيمة البطاقة (pointsApplied)، بمعزل عن السلم والأفعى
       rewardPoints = Math.max(0, rewardPoints + log.pointsApplied);
       totalCollectedPoints = Math.max(0, totalCollectedPoints + log.pointsApplied);
       
-      let tempPos = 1 + Math.floor(points / 70);
-      if (tempPos > 100) {
-        tempPos = 100;
+      let tempPos = 1 + Math.floor(points / upps);
+      if (tempPos > ubs) {
+        tempPos = ubs;
         hasFinished = true;
       }
       position = tempPos;
@@ -881,11 +950,11 @@ export const undoLastLog = (roomId) => {
       const ev = events.find(e => e.startPosition === position);
       if (ev) {
         position = ev.endPosition;
-        if (ev.endPosition === 100) {
-          points = 7000;
+        if (ev.endPosition === ubs) {
+          points = utp;
           hasFinished = true;
         } else {
-          points = (ev.endPosition - 1) * 70;
+          points = (ev.endPosition - 1) * upps;
         }
       }
       lastCardApplied = log.cardName;
@@ -932,7 +1001,8 @@ export const exportData = () => {
     events: getBoardEvents(),
     logs: getAllLogs(),
     rewards: getRewards(),
-    prizeRequests: getAllPrizeRequests()
+    prizeRequests: getAllPrizeRequests(),
+    settings: getGameSettings()
   };
   return JSON.stringify(data, null, 2);
 };
@@ -953,6 +1023,7 @@ export const importData = (jsonData) => {
     setLocalItem(KEYS.LOGS, JSON.stringify(data.logs));
     if (data.rewards) setLocalItem(KEYS.REWARDS, JSON.stringify(data.rewards));
     if (data.prizeRequests) setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify(data.prizeRequests));
+    if (data.settings) localStorage.setItem(KEYS.SETTINGS, JSON.stringify(data.settings));
 
     // إعادة ضبط الرتب للجميع للاطمئنان
     data.rooms.forEach(room => {

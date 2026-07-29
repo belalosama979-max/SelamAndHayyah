@@ -121,7 +121,7 @@ export default function RoomSummary({ room, onEnter, onEdit, onArchive }) {
                   <th style={{ padding: '0.5rem' }}>اسم اللاعب</th>
                   <th style={{ padding: '0.5rem', color: '#93c5fd' }}>📍 نقاط الرحلة</th>
                   <th style={{ padding: '0.5rem', color: '#6ee7b7' }}>🎁 المتجر</th>
-                  <th style={{ padding: '0.5rem' }}>المتبقي للهدف (7000)</th>
+                  <th style={{ padding: '0.5rem' }}>المتبقي للهدف</th>
                   <th style={{ padding: '0.5rem' }}>شريط التقدم والنسبة</th>
                 </tr>
               </thead>
@@ -159,7 +159,7 @@ export default function RoomSummary({ room, onEnter, onEdit, onArchive }) {
                       </td>
                       {/* النقاط المتبقية أو مكتمل */}
                       <td style={{ padding: '0.6rem 0.5rem' }}>
-                        {player.points >= 7000 ? (
+                        {player.progressPercentage >= 100 ? (
                           <span style={{ color: 'var(--success)', fontWeight: 800 }}>🏆 مكتمل</span>
                         ) : (
                           <span>متبقي: {remaining} ن</span>

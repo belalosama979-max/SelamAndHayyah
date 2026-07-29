@@ -511,7 +511,7 @@ export default function Board({
             🕌 خريطة الرحلة نحو المسجد الأقصى المبارك
           </h3>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            النقاط تنقل الطلاب على المسار. السلالم تصعد بهم، والأفاعي تعيدهم للأسفل (الهدف: 7000 نقطة).
+            {(() => { try { const s = localStorage.getItem('aqsa_game_settings'); const tp = s ? (JSON.parse(s).targetPoints || 8500) : 8500; return `النقاط تنقل الطلاب على المسار. السلالم تصعد بهم، والأفاعي تعيدهم للأسفل (الهدف: ${tp.toLocaleString()} نقطة).`; } catch(e) { return 'النقاط تنقل الطلاب على المسار. السلالم تصعد بهم، والأفاعي تعيدهم للأسفل.'; } })()}
           </p>
         </div>
         

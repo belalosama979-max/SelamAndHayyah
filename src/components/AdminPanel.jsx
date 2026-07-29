@@ -5,7 +5,8 @@ import {
   getPlayers, getAllPlayers, savePlayer, deletePlayer,
   getCards, saveCard, deleteCard,
   getBoardEvents, saveBoardEvent, deleteBoardEvent,
-  exportData, importData, generateId, migrateDataToFirebase 
+  exportData, importData, generateId, migrateDataToFirebase,
+  getGameSettings, saveGameSettings
 } from '../db/database';
 import { formatDate } from '../utils/helpers';
 import AdminShopPanel from './AdminShopPanel';
@@ -35,6 +36,11 @@ export default function AdminPanel({ onDataChange }) {
   const [eventForm, setEventForm] = useState({ id: '', type: 'ladder', startPosition: '', endPosition: '', description: '' });
   const [isEditingEvent, setIsEditingEvent] = useState(false);
 
+  // حالات إعدادات اللعبة
+  const [gameSettings, setGameSettings] = useState(getGameSettings());
+  const [settingsForm, setSettingsForm] = useState(getGameSettings());
+  const [settingsSaved, setSettingsSaved] = useState(false);
+
   // حالات النسخ الاحتياطي
   const [importStatus, setImportStatus] = useState({ type: '', message: '' });
 
@@ -44,6 +50,9 @@ export default function AdminPanel({ onDataChange }) {
     setRooms(updatedRooms);
     setCards(getCards());
     setEvents(getBoardEvents());
+    const freshSettings = getGameSettings();
+    setGameSettings(freshSettings);
+    setSettingsForm(freshSettings);
     if (selectedRoomId) {
       setPlayers(getPlayers(selectedRoomId));
     }
@@ -183,9 +192,10 @@ export default function AdminPanel({ onDataChange }) {
     e.preventDefault();
     const start = Number(eventForm.startPosition);
     const end = Number(eventForm.endPosition);
+    const currentBoardSize = gameSettings.boardSize || 100;
 
-    if (start < 1 || start > 100 || end < 1 || end > 100) {
-      alert("الخانات يجب أن تكون بين 1 و 100");
+    if (start < 1 || start > currentBoardSize || end < 1 || end > currentBoardSize) {
+      alert(`الخانات يجب أن تكون بين 1 و ${currentBoardSize}`);
       return;
     }
     
@@ -309,6 +319,17 @@ export default function AdminPanel({ onDataChange }) {
           }}
         >
           🪜 السلالم والأفاعي
+        </button>
+        <button 
+          onClick={() => setActiveTab('settings')} 
+          className="btn" 
+          style={{ 
+            justifyContent: 'flex-start',
+            backgroundColor: activeTab === 'settings' ? 'var(--gold)' : 'transparent',
+            color: activeTab === 'settings' ? '#fff' : 'var(--gold)'
+          }}
+        >
+          ⚙️ إعدادات الخريطة
         </button>
         <button 
           onClick={() => setActiveTab('shop')} 
@@ -832,12 +853,12 @@ export default function AdminPanel({ onDataChange }) {
                 </select>
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.35rem', fontWeight: 600 }}>خانة البداية (1 - 100)</label>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.35rem', fontWeight: 600 }}>خانة البداية (1 - {gameSettings.boardSize || 100})</label>
                 <input 
                   type="number" 
                   required 
                   min="1" 
-                  max="100"
+                  max={gameSettings.boardSize || 100}
                   placeholder="مثال: 12" 
                   value={eventForm.startPosition} 
                   onChange={(e) => setEventForm({...eventForm, startPosition: e.target.value})} 
@@ -845,12 +866,12 @@ export default function AdminPanel({ onDataChange }) {
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.35rem', fontWeight: 600 }}>خانة النهاية (1 - 100)</label>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.35rem', fontWeight: 600 }}>خانة النهاية (1 - {gameSettings.boardSize || 100})</label>
                 <input 
                   type="number" 
                   required 
                   min="1" 
-                  max="100"
+                  max={gameSettings.boardSize || 100}
                   placeholder="مثال: 38" 
                   value={eventForm.endPosition} 
                   onChange={(e) => setEventForm({...eventForm, endPosition: e.target.value})} 
