@@ -665,6 +665,24 @@ export const getLogs = (roomId) => {
   return logs.filter(l => l.roomId === roomId).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 };
 
+export const addActionLog = (logData) => {
+  const logs = getAllLogs();
+  const newLog = {
+    id: generateId(),
+    roomId: logData.roomId || null,
+    playerId: logData.playerId,
+    playerName: logData.playerName,
+    cardName: logData.cardName || logData.actionName || 'تحدي / لغز',
+    actionName: logData.actionName || logData.cardName || 'تحديث النقاط',
+    pointsApplied: logData.pointsApplied || 0,
+    timestamp: new Date().toISOString()
+  };
+  logs.push(newLog);
+  setLocalItem(KEYS.LOGS, JSON.stringify(logs));
+  window.dispatchEvent(new Event('db_sync'));
+  return newLog;
+};
+
 // --- عمليات الجوائز والطلبات (Rewards & Requests) ---
 
 export const getRewards = () => {

@@ -79,7 +79,7 @@ export default function ActionLogs({ logs = [], onUndo }) {
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  <span>🎴 بطاقة: {log.cardName}</span>
+                  <span>{log.cardName?.startsWith('🧩') ? log.cardName : `🎴 بطاقة: ${log.cardName || log.actionName || 'عملية'}`}</span>
                   <span>⏰ {formatDate(log.timestamp)}</span>
                 </div>
               </div>

@@ -89,9 +89,10 @@ export default function StudentQuiz({ quiz, student, onComplete }) {
 
     if (isCorrect) {
       setFeedback('correct');
-      setEarnedPoints(prev => prev + currentQuestion.points);
+      setEarnedPoints(prev => prev + (currentQuestion.points || 0));
     } else {
       setFeedback('wrong');
+      setEarnedPoints(prev => prev - 10);
     }
 
     setTimeout(() => {
@@ -149,10 +150,12 @@ export default function StudentQuiz({ quiz, student, onComplete }) {
             أحسنت يا بطل! لقد أنهيت <strong>{quiz.title}</strong>
           </p>
           <div style={{
-            fontSize: '3rem', fontWeight: 900, color: 'var(--success)', 
-            textShadow: '0 0 20px rgba(16,185,129,0.5)', marginBottom: '2rem'
+            fontSize: '3rem', fontWeight: 900, 
+            color: earnedPoints >= 0 ? 'var(--success)' : 'var(--danger)', 
+            textShadow: earnedPoints >= 0 ? '0 0 20px rgba(16,185,129,0.5)' : '0 0 20px rgba(239,68,68,0.5)', 
+            marginBottom: '2rem'
           }}>
-            +{earnedPoints} نقطة
+            {earnedPoints >= 0 ? `+${earnedPoints}` : earnedPoints} نقطة
           </div>
           <button 
             onClick={() => onComplete(earnedPoints)} 
@@ -184,10 +187,11 @@ export default function StudentQuiz({ quiz, student, onComplete }) {
             حظاً أوفر! لقد انتهى الوقت المخصص لهذا التحدي.
           </p>
           <div style={{
-            fontSize: '2rem', fontWeight: 900, color: 'var(--gold)', 
+            fontSize: '2rem', fontWeight: 900, 
+            color: earnedPoints >= 0 ? 'var(--gold)' : 'var(--danger)', 
             marginBottom: '2rem'
           }}>
-            جمعت: {earnedPoints} نقطة
+            النقاط المحصلة: {earnedPoints >= 0 ? `+${earnedPoints}` : earnedPoints} نقطة
           </div>
           <button 
             onClick={() => onComplete(earnedPoints)} 
@@ -392,9 +396,13 @@ export default function StudentQuiz({ quiz, student, onComplete }) {
           <h2 style={{ fontSize: '2.5rem', fontWeight: 900, color: '#fff', marginTop: '1rem', textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>
             {feedback === 'correct' ? 'إجابة صحيحة!' : 'إجابة خاطئة!'}
           </h2>
-          {feedback === 'correct' && (
+          {feedback === 'correct' ? (
             <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff', marginTop: '0.5rem' }}>
               +{currentQuestion.points} نقطة
+            </p>
+          ) : (
+            <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff', marginTop: '0.5rem' }}>
+              -10 نقاط
             </p>
           )}
         </div>
