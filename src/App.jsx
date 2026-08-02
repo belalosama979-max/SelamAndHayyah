@@ -48,7 +48,7 @@ export default function App() {
         setTimeout(() => {
           if (!localStorage.getItem('cloud_migrated')) {
             console.log("Auto-migrating data to Firebase...");
-            db.migrateDataToFirebase();
+            db.migrateDataToFirebase(true);
           }
         }, 3000);
       }
@@ -70,7 +70,7 @@ export default function App() {
   useEffect(() => {
     if (currentPath.startsWith('/game/')) {
       const roomId = currentPath.split('/')[2];
-      if (roomId && roomId !== selectedRoomId) {
+      if (roomId && (roomId !== selectedRoomId || !activeRoom)) {
         setSelectedRoomId(roomId);
         const allRooms = getRooms();
         const room = allRooms.find(r => r.id === roomId);

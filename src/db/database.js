@@ -129,12 +129,16 @@ export const startFirebaseSync = () => {
           window.dispatchEvent(new Event('db_sync'));
         }
       }
+    }, (error) => {
+      console.warn("Firestore sync warning for key:", key, error.message);
     });
   });
 };
 
-export const migrateDataToFirebase = async () => {
-  alert("⏳ جاري سحب البيانات من جهازك ورفعها إلى السحابة... الرجاء الانتظار");
+export const migrateDataToFirebase = async (silent = false) => {
+  if (!silent) {
+    alert("⏳ جاري سحب البيانات من جهازك ورفعها إلى السحابة... الرجاء الانتظار");
+  }
   syncStarted = true;
   try {
     for (const key of Object.values(KEYS)) {
@@ -144,10 +148,14 @@ export const migrateDataToFirebase = async () => {
       }
     }
     localStorage.setItem('cloud_migrated', 'true');
-    alert("تم رفع جميع البيانات إلى السحابة بنجاح! ☁️🎉");
+    if (!silent) {
+      alert("تم رفع جميع البيانات إلى السحابة بنجاح! ☁️🎉");
+    }
   } catch (e) {
     console.error("Migration failed:", e);
-    alert("حدث خطأ أثناء الرفع للسحابة: " + e.message);
+    if (!silent) {
+      alert("حدث خطأ أثناء الرفع للسحابة: " + e.message);
+    }
   }
 };
 
@@ -186,213 +194,239 @@ export const ensureParentCodes = () => {
   }
 };
 
+let isInitializing = false;
+
 // تهيئة قاعدة البيانات بالبيانات الافتراضية إذا كانت فارغة
 export const initDatabase = () => {
-  ensureParentCodes();
-  let cards = [];
+  if (isInitializing) return;
+  isInitializing = true;
   try {
-    cards = JSON.parse(localStorage.getItem(KEYS.CARDS) || '[]');
-  } catch(e) {}
-  if (!localStorage.getItem(KEYS.CARDS) || cards.length === 0) {
-    setLocalItem(KEYS.CARDS, JSON.stringify(DEFAULT_CARDS), true);
-  }
-
-  let events = [];
-  try {
-    events = JSON.parse(localStorage.getItem(KEYS.EVENTS) || '[]');
-  } catch(e) {}
-  if (!localStorage.getItem(KEYS.EVENTS) || events.length === 0) {
-    setLocalItem(KEYS.EVENTS, JSON.stringify(DEFAULT_BOARD_EVENTS), true);
-  }
-
-  if (!localStorage.getItem(KEYS.ROOMS)) {
-    setLocalItem(KEYS.ROOMS, JSON.stringify([]), true);
-  } else {
-    // تنظيف السجلات التالفة للغرف
+    ensureParentCodes();
+    let cards = [];
     try {
-      const rooms = JSON.parse(localStorage.getItem(KEYS.ROOMS) || '[]');
-      const cleanedRooms = rooms.filter(r => r.id && r.id !== 'undefined');
-      if (cleanedRooms.length !== rooms.length) {
-        setLocalItem(KEYS.ROOMS, JSON.stringify(cleanedRooms), true);
-      }
+      cards = JSON.parse(localStorage.getItem(KEYS.CARDS) || '[]');
     } catch(e) {}
-  }
+    if (!localStorage.getItem(KEYS.CARDS) || cards.length === 0) {
+      setLocalItem(KEYS.CARDS, JSON.stringify(DEFAULT_CARDS), true);
+    }
 
-  if (!localStorage.getItem(KEYS.PLAYERS)) {
-    setLocalItem(KEYS.PLAYERS, JSON.stringify([]), true);
-  } else {
-    // تنظيف السجلات التالفة للاعبين وتحديث الحقول الجديدة للطلاب الحاليين
+    let events = [];
     try {
-      const players = JSON.parse(localStorage.getItem(KEYS.PLAYERS) || '[]');
-      let updated = false;
-      const cleanedPlayers = players.filter(p => p.id && p.id !== 'undefined').map(p => {
-        if (p.rewardPoints === undefined) {
-          p.rewardPoints = p.points || 0;
-          p.totalCollectedPoints = p.points || 0;
-          p.totalSpent = 0;
-          updated = true;
-        }
-        
-        // إعادة حساب نسبة التقدم الصحيحة بناءً على الهدف الحالي
-        const _tp = getGameSettings().targetPoints;
-        const _bs = getGameSettings().boardSize;
-        const _pps = _tp / _bs;
-        const correctProgress = Math.min(100, Math.round(((p.points || 0) / _tp) * 100));
-        if (p.progressPercentage !== correctProgress) {
-          p.progressPercentage = correctProgress;
-          updated = true;
-        }
-
-        // تحديث الموقع الحالي بناءً على الإعداد الديناميكي
-        const expectedPosition = Math.min(_bs, 1 + Math.floor((p.points || 0) / _pps));
-        if (p.position !== expectedPosition) {
-           p.position = expectedPosition;
-           updated = true;
-        }
-        
-        return p;
-      });
-      if (cleanedPlayers.length !== players.length || updated) {
-        setLocalItem(KEYS.PLAYERS, JSON.stringify(cleanedPlayers), true);
-      }
+      events = JSON.parse(localStorage.getItem(KEYS.EVENTS) || '[]');
     } catch(e) {}
-  }
+    if (!localStorage.getItem(KEYS.EVENTS) || events.length === 0) {
+      setLocalItem(KEYS.EVENTS, JSON.stringify(DEFAULT_BOARD_EVENTS), true);
+    }
 
-  if (!localStorage.getItem(KEYS.LOGS)) {
-    setLocalItem(KEYS.LOGS, JSON.stringify([]), true);
-  }
-  
-  if (!localStorage.getItem(KEYS.REWARDS)) {
-    setLocalItem(KEYS.REWARDS, JSON.stringify(DEFAULT_REWARDS), true);
-  } else {
-    // If rewards exist but are empty, seed them. Or force seeding new items if needed.
-    const currentRewards = JSON.parse(localStorage.getItem(KEYS.REWARDS));
-    if (currentRewards.length === 0) {
+    if (!localStorage.getItem(KEYS.ROOMS)) {
+      setLocalItem(KEYS.ROOMS, JSON.stringify([]), true);
+    } else {
+      // تنظيف السجلات التالفة للغرف
+      try {
+        const rooms = JSON.parse(localStorage.getItem(KEYS.ROOMS) || '[]');
+        const cleanedRooms = rooms.filter(r => r.id && r.id !== 'undefined');
+        if (cleanedRooms.length !== rooms.length) {
+          setLocalItem(KEYS.ROOMS, JSON.stringify(cleanedRooms), true);
+        }
+      } catch(e) {}
+    }
+
+    if (!localStorage.getItem(KEYS.PLAYERS)) {
+      setLocalItem(KEYS.PLAYERS, JSON.stringify([]), true);
+    } else {
+      // تنظيف السجلات التالفة للاعبين وتحديث الحقول الجديدة للطلاب الحاليين
+      try {
+        const players = JSON.parse(localStorage.getItem(KEYS.PLAYERS) || '[]');
+        let updated = false;
+        const cleanedPlayers = players.filter(p => p.id && p.id !== 'undefined').map(p => {
+          if (p.rewardPoints === undefined) {
+            p.rewardPoints = p.points || 0;
+            p.totalCollectedPoints = p.points || 0;
+            p.totalSpent = 0;
+            updated = true;
+          }
+          
+          // إعادة حساب نسبة التقدم الصحيحة بناءً على الهدف الحالي
+          const _tp = getGameSettings().targetPoints;
+          const _bs = getGameSettings().boardSize;
+          const _pps = _tp / _bs;
+          const correctProgress = Math.min(100, Math.round(((p.points || 0) / _tp) * 100));
+          if (p.progressPercentage !== correctProgress) {
+            p.progressPercentage = correctProgress;
+            updated = true;
+          }
+
+          // تحديث الموقع الحالي بناءً على الإعداد الديناميكي
+          const expectedPosition = Math.min(_bs, 1 + Math.floor((p.points || 0) / _pps));
+          if (p.position !== expectedPosition) {
+             p.position = expectedPosition;
+             updated = true;
+          }
+          
+          return p;
+        });
+        if (cleanedPlayers.length !== players.length || updated) {
+          setLocalItem(KEYS.PLAYERS, JSON.stringify(cleanedPlayers), true);
+        }
+      } catch(e) {}
+    }
+
+    if (!localStorage.getItem(KEYS.LOGS)) {
+      setLocalItem(KEYS.LOGS, JSON.stringify([]), true);
+    }
+    
+    if (!localStorage.getItem(KEYS.REWARDS)) {
       setLocalItem(KEYS.REWARDS, JSON.stringify(DEFAULT_REWARDS), true);
     } else {
-      // Temporary check to update prices for existing items (so the user gets the updated shop)
-      const hasOldPrices = currentRewards.some(r => r.name === 'كاميرا' && r.pointsCost !== 2000);
-      const isMissingNewItems = !currentRewards.some(r => r.name === 'أبو صالح');
-      if (hasOldPrices || isMissingNewItems) {
+      // If rewards exist but are empty, seed them. Or force seeding new items if needed.
+      try {
+        const currentRewards = JSON.parse(localStorage.getItem(KEYS.REWARDS));
+        if (!Array.isArray(currentRewards) || currentRewards.length === 0) {
+          setLocalItem(KEYS.REWARDS, JSON.stringify(DEFAULT_REWARDS), true);
+        } else {
+          // Temporary check to update prices for existing items (so the user gets the updated shop)
+          const hasOldPrices = currentRewards.some(r => r.name === 'كاميرا' && r.pointsCost !== 2000);
+          const isMissingNewItems = !currentRewards.some(r => r.name === 'أبو صالح');
+          if (hasOldPrices || isMissingNewItems) {
+            setLocalItem(KEYS.REWARDS, JSON.stringify(DEFAULT_REWARDS), true);
+          } else {
+            // دمج الهدايا الجديدة دون حذف الموجودة
+            const existingIds = new Set(currentRewards.map(r => r.id));
+            const newRewardsToAdd = DEFAULT_REWARDS.filter(r => !existingIds.has(r.id));
+            if (newRewardsToAdd.length > 0) {
+              const merged = [...currentRewards, ...newRewardsToAdd];
+              setLocalItem(KEYS.REWARDS, JSON.stringify(merged), true);
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Error parsing rewards:", e);
         setLocalItem(KEYS.REWARDS, JSON.stringify(DEFAULT_REWARDS), true);
-      } else {
-        // دمج الهدايا الجديدة دون حذف الموجودة
-        const existingIds = new Set(currentRewards.map(r => r.id));
-        const newRewardsToAdd = DEFAULT_REWARDS.filter(r => !existingIds.has(r.id));
-        if (newRewardsToAdd.length > 0) {
-          const merged = [...currentRewards, ...newRewardsToAdd];
-          setLocalItem(KEYS.REWARDS, JSON.stringify(merged), true);
-        }
       }
     }
-  }
-  
-  if (!localStorage.getItem(KEYS.PRIZE_REQUESTS)) {
-    setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify([]), true);
-  }
+    
+    if (!localStorage.getItem(KEYS.PRIZE_REQUESTS)) {
+      setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify([]), true);
+    }
 
-  if (!localStorage.getItem(KEYS.QUIZZES)) {
-    setLocalItem(KEYS.QUIZZES, JSON.stringify([]), true);
-  }
+    if (!localStorage.getItem(KEYS.QUIZZES)) {
+      setLocalItem(KEYS.QUIZZES, JSON.stringify([]), true);
+    }
 
-  // --- One-time fix for Abdulrahman Totanji ---
-  try {
-    const logsStr = localStorage.getItem(KEYS.LOGS);
-    const playersStr = localStorage.getItem(KEYS.PLAYERS);
-    if (logsStr && playersStr) {
-      let logs = JSON.parse(logsStr);
-      let players = JSON.parse(playersStr);
-      
-      let changed = false;
-      let targetPlayerId = null;
+    // --- One-time fix for Abdulrahman Totanji ---
+    try {
+      const logsStr = localStorage.getItem(KEYS.LOGS);
+      const playersStr = localStorage.getItem(KEYS.PLAYERS);
+      if (logsStr && playersStr) {
+        let logs = JSON.parse(logsStr);
+        let players = JSON.parse(playersStr);
+        
+        let changed = false;
+        let targetPlayerId = null;
 
-      // Find the specific log and modify it
-      logs = logs.map(log => {
-        if (log.pointsApplied === 1141 && log.cardName.includes('تفاعل')) {
-          log.pointsApplied = 48;
-          targetPlayerId = log.playerId;
-          changed = true;
-        }
-        return log;
-      });
+        // Find the specific log and modify it
+        logs = logs.map(log => {
+          if (log.pointsApplied === 1141 && log.cardName.includes('تفاعل')) {
+            log.pointsApplied = 48;
+            targetPlayerId = log.playerId;
+            changed = true;
+          }
+          return log;
+        });
 
-      if (changed && targetPlayerId) {
-        // Save fixed logs
-        setLocalItem(KEYS.LOGS, JSON.stringify(logs));
+        if (changed && targetPlayerId) {
+          // Save fixed logs
+          setLocalItem(KEYS.LOGS, JSON.stringify(logs), true);
 
-        // Replay all logs for this player to rebuild their state
-        const player = players.find(p => p.id === targetPlayerId);
-        if (player) {
-          const playerLogs = logs
-            .filter(l => l.playerId === player.id)
-            .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+          // Replay all logs for this player to rebuild their state
+          const player = players.find(p => p.id === targetPlayerId);
+          if (player) {
+            const playerLogs = logs
+              .filter(l => l.playerId === player.id)
+              .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-          let points = 0;
-          let totalCollectedPoints = 0;
-          let position = 1;
-          let lastCardApplied = null;
-          let hasFinished = false;
+            let points = 0;
+            let totalCollectedPoints = 0;
+            let position = 1;
+            let lastCardApplied = null;
+            let hasFinished = false;
 
-          const eventsStr = localStorage.getItem(KEYS.EVENTS);
-          const events = eventsStr ? JSON.parse(eventsStr) : [];
-          const { targetPoints: ftp, boardSize: fbs } = getGameSettings();
-          const fpps = ftp / fbs;
+            const eventsStr = localStorage.getItem(KEYS.EVENTS);
+            const events = eventsStr ? JSON.parse(eventsStr) : [];
+            const { targetPoints: ftp, boardSize: fbs } = getGameSettings();
+            const fpps = ftp / fbs;
 
-          playerLogs.forEach(log => {
-            points = Math.max(0, Math.min(ftp, points + log.pointsApplied));
-            totalCollectedPoints = Math.max(0, totalCollectedPoints + log.pointsApplied);
-            
-            let tempPos = 1 + Math.floor(points / fpps);
-            if (tempPos > fbs) {
-              tempPos = fbs;
-              hasFinished = true;
-            }
-            position = tempPos;
-
-            const ev = events.find(e => e.startPosition === position);
-            if (ev) {
-              position = ev.endPosition;
-              if (ev.endPosition === fbs) {
-                points = ftp;
+            playerLogs.forEach(log => {
+              points = Math.max(0, Math.min(ftp, points + log.pointsApplied));
+              totalCollectedPoints = Math.max(0, totalCollectedPoints + log.pointsApplied);
+              
+              let tempPos = 1 + Math.floor(points / fpps);
+              if (tempPos > fbs) {
+                tempPos = fbs;
                 hasFinished = true;
-              } else {
-                points = (ev.endPosition - 1) * fpps;
               }
-            }
-            lastCardApplied = log.cardName;
-          });
+              position = tempPos;
 
-          player.points = points;
-          player.totalCollectedPoints = totalCollectedPoints;
-          player.rewardPoints = Math.max(0, totalCollectedPoints - (player.totalSpent || 0));
-          player.position = position;
-          player.lastCardApplied = lastCardApplied;
-          player.hasFinished = hasFinished;
-          
-          setLocalItem(KEYS.PLAYERS, JSON.stringify(players));
+              const ev = events.find(e => e.startPosition === position);
+              if (ev) {
+                position = ev.endPosition;
+                if (ev.endPosition === fbs) {
+                  points = ftp;
+                  hasFinished = true;
+                } else {
+                  points = (ev.endPosition - 1) * fpps;
+                }
+              }
+              lastCardApplied = log.cardName;
+            });
+
+            player.points = points;
+            player.totalCollectedPoints = totalCollectedPoints;
+            player.rewardPoints = Math.max(0, totalCollectedPoints - (player.totalSpent || 0));
+            player.position = position;
+            player.lastCardApplied = lastCardApplied;
+            player.hasFinished = hasFinished;
+            
+            setLocalItem(KEYS.PLAYERS, JSON.stringify(players), true);
+          }
         }
       }
+    } catch(e) {
+      console.error("Error applying log fix:", e);
     }
-  } catch(e) {
-    console.error("Error applying log fix:", e);
-  }
 
-  // --- One-time fix: Reject and refund prize request for Abdulrahman Totanji (Abu Saleh 1200 points) ---
-  try {
-    const requestsStr = localStorage.getItem(KEYS.PRIZE_REQUESTS);
-    if (requestsStr) {
-      const requests = JSON.parse(requestsStr);
-      const targetReq = requests.find(r => 
-        (r.playerName?.includes('التوتنجي') || r.playerName?.includes('عبدالرحمن')) && 
-        (r.rewardSnapshot?.name?.includes('أبو صالح') || r.pointsUsed === 1200) &&
-        r.status !== 'rejected'
-      );
-      if (targetReq) {
-        updatePrizeRequestStatus(targetReq.id, 'rejected');
+    // --- One-time fix: Reject and refund prize request for Abdulrahman Totanji (Abu Saleh 1200 points) ---
+    try {
+      const requestsStr = localStorage.getItem(KEYS.PRIZE_REQUESTS);
+      if (requestsStr) {
+        const requests = JSON.parse(requestsStr);
+        const targetReq = requests.find(r => 
+          (r.playerName?.includes('التوتنجي') || r.playerName?.includes('عبدالرحمن')) && 
+          (r.rewardSnapshot?.name?.includes('أبو صالح') || r.pointsUsed === 1200) &&
+          r.status !== 'rejected'
+        );
+        if (targetReq) {
+          targetReq.status = 'rejected';
+          targetReq.updatedAt = new Date().toISOString();
+          setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify(requests), true);
+
+          const playersStr = localStorage.getItem(KEYS.PLAYERS);
+          if (playersStr) {
+            const players = JSON.parse(playersStr);
+            const pIndex = players.findIndex(p => p.id === targetReq.playerId);
+            if (pIndex >= 0) {
+              players[pIndex].rewardPoints += (targetReq.pointsUsed || 0);
+              players[pIndex].totalSpent = Math.max(0, (players[pIndex].totalSpent || 0) - (targetReq.pointsUsed || 0));
+              setLocalItem(KEYS.PLAYERS, JSON.stringify(players), true);
+            }
+          }
+        }
       }
+    } catch(e) {
+      console.error("Error rejecting prize request:", e);
     }
-  } catch(e) {
-    console.error("Error rejecting prize request:", e);
+  } finally {
+    isInitializing = false;
   }
 };
 
