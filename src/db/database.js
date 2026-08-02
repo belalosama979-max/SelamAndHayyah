@@ -847,6 +847,7 @@ export const updatePrizeRequestStatus = (requestId, newStatus) => {
   }
   
   setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify(requests));
+  window.dispatchEvent(new Event('db_sync'));
   return { success: true };
 };
 
