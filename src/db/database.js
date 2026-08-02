@@ -376,6 +376,24 @@ export const initDatabase = () => {
   } catch(e) {
     console.error("Error applying log fix:", e);
   }
+
+  // --- One-time fix: Reject and refund prize request for Abdulrahman Totanji (Abu Saleh 1200 points) ---
+  try {
+    const requestsStr = localStorage.getItem(KEYS.PRIZE_REQUESTS);
+    if (requestsStr) {
+      const requests = JSON.parse(requestsStr);
+      const targetReq = requests.find(r => 
+        (r.playerName?.includes('التوتنجي') || r.playerName?.includes('عبدالرحمن')) && 
+        (r.rewardSnapshot?.name?.includes('أبو صالح') || r.pointsUsed === 1200) &&
+        r.status !== 'rejected'
+      );
+      if (targetReq) {
+        updatePrizeRequestStatus(targetReq.id, 'rejected');
+      }
+    }
+  } catch(e) {
+    console.error("Error rejecting prize request:", e);
+  }
 };
 
 // --- عمليات الغرف (Rooms) ---
@@ -830,6 +848,21 @@ export const updatePrizeRequestStatus = (requestId, newStatus) => {
   
   setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify(requests));
   return { success: true };
+};
+
+export const deletePrizeRequest = (requestId) => {
+  let requests = getAllPrizeRequests();
+  const req = requests.find(r => r.id === requestId);
+  if (req) {
+    if (req.status !== 'rejected') {
+      updatePrizeRequestStatus(requestId, 'rejected');
+      requests = getAllPrizeRequests();
+    }
+    const updated = requests.filter(r => r.id !== requestId);
+    setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify(updated));
+    window.dispatchEvent(new Event('db_sync'));
+  }
+  return getAllPrizeRequests();
 };
 
 // --- المنطق الأساسي للعبة: تطبيق بطاقة على لاعب ---

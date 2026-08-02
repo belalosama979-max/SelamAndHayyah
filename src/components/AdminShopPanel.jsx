@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getRewards, saveReward, deleteReward, getAllPrizeRequests, updatePrizeRequestStatus, getRooms } from '../db/database';
+import { getRewards, saveReward, deleteReward, getAllPrizeRequests, updatePrizeRequestStatus, deletePrizeRequest, getRooms } from '../db/database';
 
 export default function AdminShopPanel({ onDataChange }) {
   const [activeTab, setActiveTab] = useState('manageRewards'); // 'manageRewards' | 'requests'
@@ -81,6 +81,14 @@ export default function AdminShopPanel({ onDataChange }) {
     const actionName = newStatus === 'approved' ? 'موافقة' : newStatus === 'rejected' ? 'رفض وإرجاع النقاط' : 'تسليم';
     if (window.confirm(`هل أنت متأكد من تنفيذ: ${actionName}؟`)) {
       updatePrizeRequestStatus(requestId, newStatus);
+      loadData();
+      if (onDataChange) onDataChange();
+    }
+  };
+
+  const handleDeleteRequest = (requestId) => {
+    if (window.confirm('هل أنت متأكد من حذف هذا الطلب بالكامل وإرجاع النقاط للطالب؟')) {
+      deletePrizeRequest(requestId);
       loadData();
       if (onDataChange) onDataChange();
     }
@@ -247,18 +255,24 @@ export default function AdminShopPanel({ onDataChange }) {
                     <td style={{ padding: '1rem' }}>{getStatusLabel(req.status)}</td>
                     <td style={{ padding: '1rem' }}>
                       {req.status === 'pending' && (
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                           <button onClick={() => handleRequestAction(req.id, 'approved')} className="btn btn-primary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}>موافقة</button>
                           <button onClick={() => handleRequestAction(req.id, 'rejected')} className="btn btn-danger" style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}>رفض (إرجاع)</button>
                         </div>
                       )}
                       {req.status === 'approved' && (
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                           <button onClick={() => handleRequestAction(req.id, 'delivered')} className="btn btn-gold" style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}>تحديد كمسلّمة 📦</button>
+                          <button onClick={() => handleRequestAction(req.id, 'rejected')} className="btn btn-danger" style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}>رفض وإرجاع ↩️</button>
                         </div>
                       )}
                       {(req.status === 'delivered' || req.status === 'rejected') && (
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>مكتمل التحديث</span>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                          {req.status === 'delivered' && (
+                            <button onClick={() => handleRequestAction(req.id, 'rejected')} className="btn btn-danger" style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}>إرجاع النقاط ↩️</button>
+                          )}
+                          <button onClick={() => handleDeleteRequest(req.id)} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem', color: 'var(--danger)' }}>حذف 🗑️</button>
+                        </div>
                       )}
                     </td>
                   </tr>
