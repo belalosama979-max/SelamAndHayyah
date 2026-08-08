@@ -2,6 +2,7 @@
 import { DEFAULT_CARDS, DEFAULT_BOARD_EVENTS, DEFAULT_REWARDS } from './seedData';
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
+import { getEffectivePointsCost } from '../utils/flashSale';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBjTcigTLFNcNxALsGU_Apv3Z7zvcA86Ys",
@@ -815,7 +816,10 @@ export const orderPrize = (playerId, rewardId) => {
   const player = players[playerIndex];
   const reward = rewards[rewardIndex];
   
-  if (player.rewardPoints < reward.pointsCost) {
+  // حساب التكلفة الفعلية (مع أو بدون خصم)
+  const effectiveCost = getEffectivePointsCost(reward);
+  
+  if (player.rewardPoints < effectiveCost) {
     return { success: false, message: "عذراً، الرصيد غير كافٍ" };
   }
   
@@ -823,9 +827,9 @@ export const orderPrize = (playerId, rewardId) => {
     return { success: false, message: "عذراً، نفدت الكمية المتاحة من هذه الجائزة" };
   }
   
-  // خصم الرصيد وتحديث الطالب
-  player.rewardPoints -= reward.pointsCost;
-  player.totalSpent = (player.totalSpent || 0) + reward.pointsCost;
+  // خصم الرصيد وتحديث الطالب (بالسعر المخفض إذا كان في فترة التخفيض)
+  player.rewardPoints -= effectiveCost;
+  player.totalSpent = (player.totalSpent || 0) + effectiveCost;
   player.updatedAt = new Date().toISOString();
   setLocalItem(KEYS.PLAYERS, JSON.stringify(players));
   
@@ -840,8 +844,10 @@ export const orderPrize = (playerId, rewardId) => {
     playerName: player.name,
     roomId: player.roomId,
     rewardId: reward.id,
-    pointsUsed: reward.pointsCost,
-    rewardSnapshot: { ...reward },
+    pointsUsed: effectiveCost,
+    originalPointsCost: reward.pointsCost,
+    wasFlashSale: effectiveCost < reward.pointsCost,
+    rewardSnapshot: { ...reward, effectivePointsCost: effectiveCost },
   };
   savePrizeRequest(newRequest);
   

@@ -2,6 +2,8 @@ import AvatarDisplay from './AvatarDisplay';
 import React, { useState, useEffect, useMemo } from 'react';
 import { getAllPlayers, getRooms, getAllLogs, getBoardEvents, getAllPrizeRequests, getRewards, orderPrize, savePlayer, recordPlayerVisit, getQuizzes, addActionLog } from '../db/database';
 import { getRemainingPoints } from '../utils/helpers';
+import { isFlashSaleActive, getEffectivePointsCost, isItemOnSale } from '../utils/flashSale';
+import FlashSaleBanner from './FlashSaleBanner';
 import Board from './Board';
 import StudentQuiz from './StudentQuiz';
 import UpcomingQuizAlert from './UpcomingQuizAlert';
@@ -174,7 +176,13 @@ export default function ParentPortal() {
   const handleOrderPrize = (reward) => {
     if (!student) return;
     
-    if (window.confirm(`هل أنت متأكد من طلب "${reward.name}" للطالب بـ ${reward.pointsCost} نقطة؟`)) {
+    const effectiveCost = getEffectivePointsCost(reward);
+    const onSale = isItemOnSale(reward);
+    const confirmMsg = onSale
+      ? `🔥 تخفيض! هل أنت متأكد من طلب "${reward.name}" للطالب بـ ${effectiveCost} نقطة بدلاً من ${reward.pointsCost}؟`
+      : `هل أنت متأكد من طلب "${reward.name}" للطالب بـ ${effectiveCost} نقطة؟`;
+    
+    if (window.confirm(confirmMsg)) {
       const result = orderPrize(student.id, reward.id);
       if (result.success) {
         alert('تم طلب الجائزة بنجاح!');
@@ -662,6 +670,9 @@ export default function ParentPortal() {
             {/* TAB: SHOP */}
             {studentTab === 'shop' && (
               <div className="fade-in glass-panel" style={{ padding: '2rem' }}>
+                {/* Flash Sale Banner */}
+                <FlashSaleBanner />
+
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                   <div>
                     <h3 style={{ fontSize: '1.8rem', color: 'var(--gold)', marginBottom: '0.5rem' }}>🛍️ متجر الجوائز</h3>
@@ -681,19 +692,36 @@ export default function ParentPortal() {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
                     {[...rewards].sort((a, b) => b.isFeatured - a.isFeatured).map(reward => {
                       const isOutOfStock = reward.remainingStock <= 0;
-                      const canAfford = student.rewardPoints >= reward.pointsCost;
+                      const onSale = isItemOnSale(reward);
+                      const effectiveCost = getEffectivePointsCost(reward);
+                      const canAfford = student.rewardPoints >= effectiveCost;
 
                       return (
                         <div key={reward.id} style={{
                           backgroundColor: 'var(--bg-primary)',
                           borderRadius: 'var(--radius-lg)',
                           overflow: 'hidden',
-                          border: reward.isFeatured ? '2px solid var(--gold)' : '1px solid var(--border-color)',
+                          border: onSale ? '2px solid #ffd700' : reward.isFeatured ? '2px solid var(--gold)' : '1px solid var(--border-color)',
                           position: 'relative',
                           display: 'flex',
                           flexDirection: 'column',
-                          boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                          boxShadow: onSale ? '0 0 25px rgba(255, 215, 0, 0.15)' : '0 4px 6px rgba(0,0,0,0.1)'
                         }}>
+                          {/* شارة التخفيض */}
+                          {onSale && (
+                            <div style={{
+                              position: 'absolute', top: '10px', left: '10px',
+                              background: 'linear-gradient(135deg, #ff6b6b, #ee5a24)',
+                              color: '#fff',
+                              padding: '0.3rem 0.75rem', borderRadius: '20px',
+                              fontSize: '0.8rem', fontWeight: 800, zIndex: 10,
+                              boxShadow: '0 2px 10px rgba(255, 107, 107, 0.4)',
+                              animation: 'flashSalePulse 2s ease-in-out infinite',
+                            }}>
+                              🔥 تخفيض!
+                            </div>
+                          )}
+
                           {reward.isFeatured && (
                             <div style={{
                               position: 'absolute', top: '10px', right: '10px',
@@ -732,14 +760,56 @@ export default function ParentPortal() {
                           <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
                               <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>{reward.name}</h4>
-                              <span style={{ backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '0.2rem 0.5rem', borderRadius: 'var(--radius-md)', fontWeight: 800, fontSize: '0.85rem' }}>
-                                {reward.pointsCost} ن
-                              </span>
+                              
+                              {/* عرض النقاط - أصلي ومخفض */}
+                              {onSale ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.2rem' }}>
+                                  <span style={{
+                                    color: '#ef4444',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 600,
+                                    textDecoration: 'line-through',
+                                    opacity: 0.7,
+                                  }}>
+                                    {reward.pointsCost} ن
+                                  </span>
+                                  <span style={{
+                                    background: 'linear-gradient(135deg, rgba(255,107,107,0.2), rgba(255,215,0,0.2))',
+                                    color: '#ffd700',
+                                    padding: '0.2rem 0.5rem',
+                                    borderRadius: 'var(--radius-md)',
+                                    fontWeight: 900,
+                                    fontSize: '0.95rem',
+                                    border: '1px solid rgba(255, 215, 0, 0.3)',
+                                    textShadow: '0 0 8px rgba(255, 215, 0, 0.3)',
+                                  }}>
+                                    🔥 {effectiveCost} ن
+                                  </span>
+                                </div>
+                              ) : (
+                                <span style={{ backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '0.2rem 0.5rem', borderRadius: 'var(--radius-md)', fontWeight: 800, fontSize: '0.85rem' }}>
+                                  {reward.pointsCost} ن
+                                </span>
+                              )}
                             </div>
                             
-                            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', flex: 1, minHeight: '40px' }}>
+                            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem', flex: 1, minHeight: '40px' }}>
                               {reward.description}
                             </p>
+
+                            {/* توفير النقاط */}
+                            {onSale && (
+                              <div style={{
+                                textAlign: 'center',
+                                marginBottom: '0.75rem',
+                                fontSize: '0.8rem',
+                                color: '#ff6b6b',
+                                fontWeight: 700,
+                                animation: 'flashSalePulse 2s ease-in-out infinite',
+                              }}>
+                                وفّر {reward.pointsCost - effectiveCost} نقطة!
+                              </div>
+                            )}
 
                             <button 
                               onClick={() => handleOrderPrize(reward)}
@@ -747,7 +817,7 @@ export default function ParentPortal() {
                               className={`btn ${canAfford ? 'btn-primary' : 'btn-danger'}`}
                               style={{ width: '100%', opacity: (isOutOfStock || !canAfford) ? 0.5 : 1 }}
                             >
-                              {isOutOfStock ? 'غير متوفر' : canAfford ? 'طلب الجائزة الآن' : 'نقاط المتجر لا تكفي'}
+                              {isOutOfStock ? 'غير متوفر' : canAfford ? (onSale ? '🔥 اطلب بسعر التخفيض!' : 'طلب الجائزة الآن') : 'نقاط المتجر لا تكفي'}
                             </button>
                           </div>
                         </div>
