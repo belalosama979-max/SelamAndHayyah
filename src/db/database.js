@@ -435,7 +435,7 @@ export const initDatabase = () => {
         const targetReqs = requests.filter(r => 
           r.playerName?.includes('عمر') && r.playerName?.includes('الرجوب') && 
           r.rewardSnapshot?.name?.includes('لعبة تركيب شخصيات') &&
-          r.pointsUsed === 0 &&
+          (!r.pointsUsed || r.pointsUsed == 0) &&
           !r.fixedForOmar
         );
 
@@ -460,9 +460,16 @@ export const initDatabase = () => {
             }
           });
 
-          setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify(requests), true);
+          // Force local storage and sync to Firebase immediately
+          const now = Date.now();
+          localStorage.setItem(KEYS.PRIZE_REQUESTS, JSON.stringify(requests));
+          localStorage.setItem(KEYS.PRIZE_REQUESTS + '_time', now.toString());
+          setDoc(doc(db, "data", KEYS.PRIZE_REQUESTS), { value: JSON.stringify(requests), lastUpdated: now }).catch(console.error);
+
           if (playersChanged && players) {
-            setLocalItem(KEYS.PLAYERS, JSON.stringify(players), true);
+            localStorage.setItem(KEYS.PLAYERS, JSON.stringify(players));
+            localStorage.setItem(KEYS.PLAYERS + '_time', now.toString());
+            setDoc(doc(db, "data", KEYS.PLAYERS), { value: JSON.stringify(players), lastUpdated: now }).catch(console.error);
           }
         }
       }
