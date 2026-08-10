@@ -277,5 +277,6 @@ export const DEFAULT_REWARDS = [
   { id: "reward-20", name: "أتاري (SUP Game Box)", pointsCost: 2000, description: "5 دنانير (غالية)", isFeatured: true, imageEmoji: "🕹️", images: ["/atari_reward.png"], remainingStock: 5, stock: 5 },
   { id: "reward-21", name: "بلوزة", pointsCost: 2000, description: "5 دنانير (غالية)", isFeatured: true, imageEmoji: "👕", images: ["/blouse_reward.png"], remainingStock: 5, stock: 5 },
   { id: "reward-22", name: "سندويشة شاورما كبير", pointsCost: 480, description: "1.2 دينار (خفيفة)", isFeatured: false, imageEmoji: "🥙", remainingStock: 30, stock: 30 },
-  { id: "reward-23", name: "مصحف", pointsCost: 1200, description: "3 دنانير (متوسطة)", isFeatured: false, imageEmoji: "📖", remainingStock: 10, stock: 10 }
+  { id: "reward-23", name: "مصحف", pointsCost: 1200, description: "3 دنانير (متوسطة)", isFeatured: false, imageEmoji: "📖", remainingStock: 10, stock: 10 },
+  { id: "reward-24", name: "خصم على نشاط الحفاظ", pointsCost: 800, description: "أدخل قيمة الخصم بالدينار الأردني، كل 1 دينار = 800 نقطة", isFeatured: true, imageEmoji: "🕌", remainingStock: 999, stock: 999 }
 ];

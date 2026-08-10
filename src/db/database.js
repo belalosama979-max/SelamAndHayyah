@@ -285,19 +285,13 @@ export const initDatabase = () => {
         if (!Array.isArray(currentRewards) || currentRewards.length === 0) {
           setLocalItem(KEYS.REWARDS, JSON.stringify(DEFAULT_REWARDS), true);
         } else {
-          // Temporary check to update prices for existing items (so the user gets the updated shop)
-          const hasOldPrices = currentRewards.some(r => r.name === 'كاميرا' && r.pointsCost !== 2000);
-          const isMissingNewItems = !currentRewards.some(r => r.name === 'أبو صالح');
-          if (hasOldPrices || isMissingNewItems) {
-            setLocalItem(KEYS.REWARDS, JSON.stringify(DEFAULT_REWARDS), true);
-          } else {
-            // دمج الهدايا الجديدة دون حذف الموجودة
-            const existingIds = new Set(currentRewards.map(r => r.id));
-            const newRewardsToAdd = DEFAULT_REWARDS.filter(r => !existingIds.has(r.id));
-            if (newRewardsToAdd.length > 0) {
-              const merged = [...currentRewards, ...newRewardsToAdd];
-              setLocalItem(KEYS.REWARDS, JSON.stringify(merged), true);
-            }
+          // دمج الهدايا الجديدة دون حذف الموجودة أو المخصصة
+          const existingIds = new Set(currentRewards.map(r => r.id));
+          const newRewardsToAdd = DEFAULT_REWARDS.filter(r => !existingIds.has(r.id));
+          
+          if (newRewardsToAdd.length > 0) {
+            const merged = [...currentRewards, ...newRewardsToAdd];
+            setLocalItem(KEYS.REWARDS, JSON.stringify(merged), true);
           }
         }
       } catch (e) {
