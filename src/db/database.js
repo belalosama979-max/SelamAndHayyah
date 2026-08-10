@@ -853,7 +853,7 @@ export const savePrizeRequest = (request) => {
   return getAllPrizeRequests();
 };
 
-export const orderPrize = (playerId, rewardId) => {
+export const orderPrize = (playerId, rewardId, customPointsCost = null) => {
   const players = getAllPlayers();
   const rewards = getRewards();
   
@@ -867,8 +867,8 @@ export const orderPrize = (playerId, rewardId) => {
   const player = players[playerIndex];
   const reward = rewards[rewardIndex];
   
-  // حساب التكلفة الفعلية (مع أو بدون خصم)
-  const effectiveCost = getEffectivePointsCost(reward);
+  // حساب التكلفة الفعلية (مع أو بدون خصم أو السعر المخصص)
+  const effectiveCost = customPointsCost !== null ? customPointsCost : getEffectivePointsCost(reward);
   
   if (player.rewardPoints < effectiveCost) {
     return { success: false, message: "عذراً، الرصيد غير كافٍ" };
@@ -891,16 +891,24 @@ export const orderPrize = (playerId, rewardId) => {
   
   // تسجيل الطلب وحفظ نسخة ثابتة من الجائزة
   const newRequest = {
+    id: generateId(),
     playerId: player.id,
     playerName: player.name,
     roomId: player.roomId,
     rewardId: reward.id,
     pointsUsed: effectiveCost,
-    originalPointsCost: reward.pointsCost,
-    wasFlashSale: effectiveCost < reward.pointsCost,
+    originalPointsCost: customPointsCost !== null ? customPointsCost : reward.pointsCost,
+    wasFlashSale: customPointsCost === null && effectiveCost < reward.pointsCost,
     rewardSnapshot: { ...reward, effectivePointsCost: effectiveCost },
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   };
-  savePrizeRequest(newRequest);
+  
+  // Save directly to localStorage without calling savePrizeRequest to avoid generating new ID
+  const requests = getAllPrizeRequests();
+  requests.push(newRequest);
+  setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify(requests));
   
   return { success: true, message: "تم تسجيل الطلب بنجاح" };
 };

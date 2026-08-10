@@ -173,17 +173,31 @@ export default function ParentPortal() {
     setStudentTab('dashboard');
   };
 
+  const [dynamicValues, setDynamicValues] = useState({});
+
   const handleOrderPrize = (reward) => {
     if (!student) return;
     
-    const effectiveCost = getEffectivePointsCost(reward);
-    const onSale = isItemOnSale(reward);
+    const isDynamic = reward.name.includes("خصم على نشاط الحفاظ");
+    let customPointsCost = null;
+
+    if (isDynamic) {
+      const jd = parseFloat(dynamicValues[reward.id]);
+      if (!jd || jd <= 0) {
+        alert("الرجاء إدخال القيمة بالدينار بشكل صحيح (مثال: 1 أو 1.2)");
+        return;
+      }
+      customPointsCost = Math.round(jd * 800);
+    }
+    
+    const effectiveCost = isDynamic ? customPointsCost : getEffectivePointsCost(reward);
+    const onSale = !isDynamic && isItemOnSale(reward);
     const confirmMsg = onSale
       ? `🔥 تخفيض! هل أنت متأكد من طلب "${reward.name}" للطالب بـ ${effectiveCost} نقطة بدلاً من ${reward.pointsCost}؟`
       : `هل أنت متأكد من طلب "${reward.name}" للطالب بـ ${effectiveCost} نقطة؟`;
     
     if (window.confirm(confirmMsg)) {
-      const result = orderPrize(student.id, reward.id);
+      const result = orderPrize(student.id, reward.id, customPointsCost);
       if (result.success) {
         alert('تم طلب الجائزة بنجاح!');
         // Refresh data
@@ -192,11 +206,13 @@ export default function ParentPortal() {
         const updatedPlayers = getAllPlayers();
         setAllPlayers(updatedPlayers);
         setStudent(updatedPlayers.find(p => p.id === student.id));
+        setDynamicValues(prev => ({ ...prev, [reward.id]: '' }));
       } else {
         alert(result.message);
       }
     }
   };
+
 
   // -------------------------------------------------------------
   // Derived Data
@@ -691,10 +707,14 @@ export default function ParentPortal() {
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
                     {[...rewards].sort((a, b) => b.isFeatured - a.isFeatured).map(reward => {
+                      const isDynamic = reward.name.includes("خصم على نشاط الحفاظ");
+                      const jdValue = dynamicValues[reward.id] || '';
+                      const dynamicPointsCost = isDynamic ? Math.round((parseFloat(jdValue) || 0) * 800) : 0;
+
                       const isOutOfStock = reward.remainingStock <= 0;
-                      const onSale = isItemOnSale(reward);
-                      const effectiveCost = getEffectivePointsCost(reward);
-                      const canAfford = student.rewardPoints >= effectiveCost;
+                      const onSale = !isDynamic && isItemOnSale(reward);
+                      const effectiveCost = isDynamic ? (dynamicPointsCost || 0) : getEffectivePointsCost(reward);
+                      const canAfford = student.rewardPoints >= (isDynamic ? (dynamicPointsCost > 0 ? dynamicPointsCost : Infinity) : effectiveCost);
 
                       return (
                         <div key={reward.id} style={{
@@ -762,7 +782,23 @@ export default function ParentPortal() {
                               <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>{reward.name}</h4>
                               
                               {/* عرض النقاط - أصلي ومخفض */}
-                              {onSale ? (
+                              {isDynamic ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
+                                  <input 
+                                    type="number"
+                                    step="0.1"
+                                    min="0.1"
+                                    placeholder="قيمة الخصم بالدينار (مثال: 1.2)"
+                                    value={dynamicValues[reward.id] || ''}
+                                    onChange={(e) => setDynamicValues(prev => ({ ...prev, [reward.id]: e.target.value }))}
+                                    className="form-input"
+                                    style={{ width: '150px', padding: '0.2rem 0.5rem', fontSize: '0.85rem' }}
+                                  />
+                                  <span style={{ fontSize: '0.8rem', color: 'var(--gold)', fontWeight: 800 }}>
+                                    {dynamicPointsCost} ن
+                                  </span>
+                                </div>
+                              ) : onSale ? (
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.2rem' }}>
                                   <span style={{
                                     color: '#ef4444',
@@ -794,7 +830,7 @@ export default function ParentPortal() {
                             </div>
                             
                             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem', flex: 1, minHeight: '40px' }}>
-                              {reward.description}
+                              {isDynamic && !reward.description ? "أدخل قيمة الخصم بالدينار الأردني، كل 1 دينار = 800 نقطة" : reward.description}
                             </p>
 
                             {/* توفير النقاط */}

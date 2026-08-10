@@ -40,6 +40,8 @@ export default function ShopView({ onBack }) {
     }
   }, [selectedRoomId]);
 
+  const [dynamicValues, setDynamicValues] = useState({});
+
   const activePlayer = players.find(p => p.id === selectedPlayerId);
 
   const handleOrder = (reward) => {
@@ -48,19 +50,32 @@ export default function ShopView({ onBack }) {
       return;
     }
     
-    const effectiveCost = getEffectivePointsCost(reward);
-    const onSale = isItemOnSale(reward);
+    const isDynamic = reward.name.includes("خصم على نشاط الحفاظ");
+    let customPointsCost = null;
+
+    if (isDynamic) {
+      const jd = parseFloat(dynamicValues[reward.id]);
+      if (!jd || jd <= 0) {
+        alert("الرجاء إدخال القيمة بالدينار بشكل صحيح (مثال: 1 أو 1.2)");
+        return;
+      }
+      customPointsCost = Math.round(jd * 800);
+    }
+    
+    const effectiveCost = isDynamic ? customPointsCost : getEffectivePointsCost(reward);
+    const onSale = !isDynamic && isItemOnSale(reward);
     const confirmMsg = onSale
       ? `🔥 تخفيض! هل أنت متأكد من طلب "${reward.name}" للطالب ${activePlayer.name} بـ ${effectiveCost} نقطة بدلاً من ${reward.pointsCost}؟`
       : `هل أنت متأكد من طلب "${reward.name}" للطالب ${activePlayer.name} بـ ${effectiveCost} نقطة؟`;
     
     if (window.confirm(confirmMsg)) {
-      const result = orderPrize(activePlayer.id, reward.id);
+      const result = orderPrize(activePlayer.id, reward.id, customPointsCost);
       if (result.success) {
         alert('تم طلب الجائزة بنجاح!');
         // Refresh data
         setRewards(getRewards());
         setPlayers(getPlayers(selectedRoomId));
+        setDynamicValues(prev => ({ ...prev, [reward.id]: '' }));
       } else {
         alert(result.message);
       }
@@ -148,10 +163,14 @@ export default function ShopView({ onBack }) {
           <div className="shop-grid">
             {/* Sort so featured rewards are first */}
             {[...rewards].sort((a, b) => b.isFeatured - a.isFeatured).map(reward => {
+              const isDynamic = reward.name.includes("خصم على نشاط الحفاظ");
+              const jdValue = dynamicValues[reward.id] || '';
+              const dynamicPointsCost = isDynamic ? Math.round((parseFloat(jdValue) || 0) * 800) : 0;
+
               const isOutOfStock = reward.remainingStock <= 0;
-              const onSale = isItemOnSale(reward);
-              const effectiveCost = getEffectivePointsCost(reward);
-              const canAfford = activePlayer && activePlayer.rewardPoints >= effectiveCost;
+              const onSale = !isDynamic && isItemOnSale(reward);
+              const effectiveCost = isDynamic ? (dynamicPointsCost || 0) : getEffectivePointsCost(reward);
+              const canAfford = activePlayer && activePlayer.rewardPoints >= (isDynamic ? (dynamicPointsCost > 0 ? dynamicPointsCost : Infinity) : effectiveCost);
 
               return (
                 <div key={reward.id} className="glass-panel" style={{
@@ -247,7 +266,23 @@ export default function ShopView({ onBack }) {
                       <h4 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>{reward.name}</h4>
                       
                       {/* عرض النقاط - أصلي ومخفض */}
-                      {onSale ? (
+                      {isDynamic ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
+                          <input 
+                            type="number"
+                            step="0.1"
+                            min="0.1"
+                            placeholder="مثال: 1.2"
+                            value={dynamicValues[reward.id] || ''}
+                            onChange={(e) => setDynamicValues(prev => ({ ...prev, [reward.id]: e.target.value }))}
+                            className="form-input"
+                            style={{ width: '120px', padding: '0.2rem 0.5rem', fontSize: '0.85rem' }}
+                          />
+                          <span style={{ fontSize: '0.8rem', color: 'var(--gold)', fontWeight: 800 }}>
+                            {dynamicPointsCost} ن
+                          </span>
+                        </div>
+                      ) : onSale ? (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
                           <span style={{
                             color: '#ef4444',
@@ -279,7 +314,7 @@ export default function ShopView({ onBack }) {
                     </div>
                     
                     <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1.5rem', flex: 1 }}>
-                      {reward.description}
+                      {isDynamic && !reward.description ? "أدخل قيمة الخصم بالدينار، كل 1 دينار يخصم 800 نقطة." : reward.description}
                     </p>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', fontSize: '0.85rem' }}>
