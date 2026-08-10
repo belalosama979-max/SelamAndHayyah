@@ -40,8 +40,11 @@ export function getDiscountedPoints(reward) {
     // 6 دنانير → 5.25 دنانير
     discountedPriceJD = 5.25;
   } else if (priceJD <= 3) {
+    if (priceJD <= 0.60) {
+      return null;
+    }
     // 3 دنانير وأقل → خصم 60 قرش (0.60 دينار)
-    discountedPriceJD = Math.max(0, priceJD - 0.60);
+    discountedPriceJD = Math.max(0.1, priceJD - 0.60);
   } else {
     // أسعار أخرى (مثل 3.5, 7) → لا خصم
     return null;

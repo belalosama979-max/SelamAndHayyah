@@ -426,6 +426,50 @@ export const initDatabase = () => {
     } catch(e) {
       console.error("Error rejecting prize request:", e);
     }
+
+    // --- One-time fix: Omar Al-Rajoub bought لعبة تركيب شخصيات for free ---
+    try {
+      const requestsStr = localStorage.getItem(KEYS.PRIZE_REQUESTS);
+      if (requestsStr) {
+        const requests = JSON.parse(requestsStr);
+        const targetReqs = requests.filter(r => 
+          r.playerName?.includes('عمر') && r.playerName?.includes('الرجوب') && 
+          r.rewardSnapshot?.name?.includes('لعبة تركيب شخصيات') &&
+          r.pointsUsed === 0 &&
+          !r.fixedForOmar
+        );
+
+        if (targetReqs.length > 0) {
+          let playersChanged = false;
+          let players = null;
+          
+          const playersStr = localStorage.getItem(KEYS.PLAYERS);
+          if (playersStr) players = JSON.parse(playersStr);
+
+          targetReqs.forEach(targetReq => {
+            targetReq.pointsUsed = 400; 
+            targetReq.fixedForOmar = true;
+            
+            if (players) {
+              const pIndex = players.findIndex(p => p.id === targetReq.playerId);
+              if (pIndex >= 0) {
+                players[pIndex].rewardPoints = Math.max(0, (players[pIndex].rewardPoints || 0) - 400);
+                players[pIndex].totalSpent = (players[pIndex].totalSpent || 0) + 400;
+                playersChanged = true;
+              }
+            }
+          });
+
+          setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify(requests), true);
+          if (playersChanged && players) {
+            setLocalItem(KEYS.PLAYERS, JSON.stringify(players), true);
+          }
+        }
+      }
+    } catch(e) {
+      console.error("Error fixing Omar Al-Rajoub:", e);
+    }
+
   } finally {
     isInitializing = false;
   }
