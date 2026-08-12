@@ -1,6 +1,6 @@
 import AvatarDisplay from './AvatarDisplay';
 import React, { useState, useEffect, useMemo } from 'react';
-import { getAllPlayers, getRooms, getAllLogs, getBoardEvents, getAllPrizeRequests, getRewards, orderPrize, savePlayer, recordPlayerVisit, getQuizzes, addActionLog } from '../db/database';
+import { getAllPlayers, getRooms, getAllLogs, getBoardEvents, getAllPrizeRequests, getRewards, orderPrize, savePlayer, recordPlayerVisit, getQuizzes } from '../db/database';
 import { getRemainingPoints } from '../utils/helpers';
 import { isFlashSaleActive, getEffectivePointsCost, isItemOnSale } from '../utils/flashSale';
 import FlashSaleBanner from './FlashSaleBanner';
@@ -134,13 +134,10 @@ export default function ParentPortal() {
 
   const handleQuizComplete = (earnedPoints) => {
     // 1. Update the student in DB
-    const newPoints = Math.max(0, (student.points || 0) + earnedPoints);
-    const newTotalPoints = Math.max(0, (student.totalCollectedPoints || 0) + earnedPoints);
-
     const updatedStudent = {
       ...student,
-      points: newPoints,
-      totalCollectedPoints: newTotalPoints,
+      points: (student.points || 0) + earnedPoints,
+      totalCollectedPoints: (student.totalCollectedPoints || 0) + earnedPoints,
       answeredQuizzes: {
         ...(student.answeredQuizzes || {}),
         [activeQuiz.id]: {
@@ -151,21 +148,10 @@ export default function ParentPortal() {
     };
     savePlayer(updatedStudent);
     
-    // 2. Log in Live Action Logs (سجل العمليات الحية)
-    addActionLog({
-      roomId: student.roomId,
-      playerId: student.id,
-      playerName: student.name,
-      cardName: `🧩 تحدي: ${activeQuiz.title}`,
-      actionName: `تحدي (${earnedPoints >= 0 ? `+${earnedPoints}` : earnedPoints} ن)`,
-      pointsApplied: earnedPoints
-    });
-
-    // 3. Update local state
+    // 2. Update local state
     setStudent(updatedStudent);
     const updatedPlayers = getAllPlayers();
     setAllPlayers(updatedPlayers);
-    setAllLogs(getAllLogs());
     
     // 3. Proceed to portal
     setActiveQuiz(null);
