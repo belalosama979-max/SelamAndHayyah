@@ -1043,13 +1043,16 @@ export const applyCardToPlayer = (roomId, playerId, cardId, customValue = null) 
   recalculateRanks(roomId);
 
   // تسجيل العملية في السجل
+  // cardValue = قيمة البطاقة الخام (للمتجر ونقاط المكافآت)
+  // pointsApplied = التغيير الفعلي في نقاط الخريطة شاملاً السلم والأفعى (للعرض)
   const newLog = {
     id: generateId(),
     roomId,
     playerId,
     playerName: player.name,
     cardName: card.name,
-    pointsApplied: player.points - oldPoints, // النقاط الفعلية المضافة شاملة السلم والحية
+    cardValue: pointsApplied,                  // قيمة البطاقة الخام (بدون السلم/الأفعى)
+    pointsApplied: player.points - oldPoints,   // التغيير الفعلي في الخريطة (شاملاً السلم/الأفعى)
     timestamp: new Date().toISOString()
   };
   
@@ -1104,12 +1107,14 @@ export const undoLastLog = (roomId) => {
     const upps = utp / ubs;
 
     playerLogs.forEach(log => {
-      // نطبق التعديل التراكمي على نقاط اللعبة
+      // نقاط الخريطة: نستخدم pointsApplied (التغيير الفعلي شاملاً السلم/الأفعى)
       points = Math.max(0, Math.min(utp, points + log.pointsApplied));
 
-      // نقاط المتجر تتأثر فقط بقيمة البطاقة (pointsApplied)، بمعزل عن السلم والأفعى
-      rewardPoints = Math.max(0, rewardPoints + log.pointsApplied);
-      totalCollectedPoints = Math.max(0, totalCollectedPoints + log.pointsApplied);
+      // نقاط المتجر: نستخدم cardValue (قيمة البطاقة الخام) إذا متوفر، وإلا نستخدم pointsApplied
+      // هذا يضمن أن السلالم والأفاعي لا تؤثر على رصيد المتجر
+      const rawCardValue = log.cardValue !== undefined ? log.cardValue : log.pointsApplied;
+      rewardPoints = Math.max(0, rewardPoints + rawCardValue);
+      totalCollectedPoints = Math.max(0, totalCollectedPoints + rawCardValue);
       
       let tempPos = 1 + Math.floor(points / upps);
       if (tempPos > ubs) {
@@ -1118,15 +1123,18 @@ export const undoLastLog = (roomId) => {
       }
       position = tempPos;
 
-      // نتحقق من وجود سلم أو حية - تؤثر على الموقع ونقاط اللعبة فقط
-      const ev = events.find(e => e.startPosition === position);
-      if (ev) {
-        position = ev.endPosition;
-        if (ev.endPosition === ubs) {
-          points = utp;
-          hasFinished = true;
-        } else {
-          points = (ev.endPosition - 1) * upps;
+      // للسجلات الجديدة (تحتوي على cardValue)، نعيد تطبيق السلم/الأفعى للتأكد من الموقع الصحيح
+      // للسجلات القديمة، pointsApplied يتضمن بالفعل تأثير السلم/الأفعى فلا داعي لإعادة تطبيقه
+      if (log.cardValue !== undefined) {
+        const ev = events.find(e => e.startPosition === position);
+        if (ev) {
+          position = ev.endPosition;
+          if (ev.endPosition === ubs) {
+            points = utp;
+            hasFinished = true;
+          } else {
+            points = (ev.endPosition - 1) * upps;
+          }
         }
       }
       lastCardApplied = log.cardName;
@@ -1161,6 +1169,93 @@ export const undoLastLog = (roomId) => {
     players: getPlayers(roomId),
     rooms: getRooms()
   };
+};
+
+// --- إعادة حساب جميع اللاعبين من السجلات (Recalculate from Logs) ---
+// هذه الدالة تعيد بناء حالة كل لاعب من نقطة الصفر بناءً على سجل العمليات الصحيح
+// وتضمن أن نقاط الخريطة ونقاط المتجر صحيحة ومستقلتان
+export const recalculateAllFromLogs = () => {
+  try {
+    const allLogs = getAllLogs();
+    const allPlayers = getAllPlayers();
+    const events = getBoardEvents();
+    const { targetPoints: tp, boardSize: bs } = getGameSettings();
+    const pps = tp / bs;
+
+    const updatedPlayers = allPlayers.map(player => {
+      const playerLogs = allLogs
+        .filter(l => l.playerId === player.id)
+        .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+      let points = 0;
+      let rewardPoints = 0;
+      let totalCollectedPoints = 0;
+      let position = 1;
+      let lastCardApplied = null;
+      let hasFinished = false;
+
+      playerLogs.forEach(log => {
+        // نقاط الخريطة: نستخدم pointsApplied (يشمل تأثير السلم/الأفعى)
+        points = Math.max(0, Math.min(tp, points + log.pointsApplied));
+
+        // نقاط المتجر: نستخدم cardValue إذا كان متوفراً (سجلات جديدة)
+        // أو pointsApplied للسجلات القديمة (قد تكون غير دقيقة إذا كانت ستتأثر بسلم/أفعى)
+        const rawCardValue = log.cardValue !== undefined ? log.cardValue : log.pointsApplied;
+        rewardPoints = Math.max(0, rewardPoints + rawCardValue);
+        totalCollectedPoints = Math.max(0, totalCollectedPoints + rawCardValue);
+
+        let tempPos = 1 + Math.floor(points / pps);
+        if (tempPos > bs) {
+          tempPos = bs;
+          hasFinished = true;
+        }
+        position = tempPos;
+
+        // إعادة تطبيق السلم/الأفعى فقط للسجلات الجديدة
+        if (log.cardValue !== undefined) {
+          const ev = events.find(e => e.startPosition === position);
+          if (ev) {
+            position = ev.endPosition;
+            if (ev.endPosition === bs) {
+              points = tp;
+              hasFinished = true;
+            } else {
+              points = (ev.endPosition - 1) * pps;
+            }
+          }
+        }
+
+        if (points >= tp) hasFinished = true;
+        lastCardApplied = log.cardName;
+      });
+
+      // rewardPoints النهائي = إجمالي المجمع - المنفق في المتجر
+      const finalRewardPoints = Math.max(0, totalCollectedPoints - (player.totalSpent || 0));
+
+      return {
+        ...player,
+        points,
+        rewardPoints: finalRewardPoints,
+        totalCollectedPoints,
+        position,
+        progressPercentage: Math.min(100, Math.round((points / tp) * 100)),
+        lastCardApplied,
+        hasFinished
+      };
+    });
+
+    setLocalItem(KEYS.PLAYERS, JSON.stringify(updatedPlayers));
+
+    // إعادة حساب الرتب لكل غرفة
+    const rooms = getRooms();
+    rooms.forEach(room => recalculateRanks(room.id));
+
+    window.dispatchEvent(new Event('db_sync'));
+    return { success: true, count: updatedPlayers.length };
+  } catch(e) {
+    console.error('recalculateAllFromLogs error:', e);
+    return { success: false, error: e.message };
+  }
 };
 
 // --- تصدير واستيراد البيانات (Backup) ---

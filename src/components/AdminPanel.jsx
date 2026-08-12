@@ -6,7 +6,7 @@ import {
   getCards, saveCard, deleteCard,
   getBoardEvents, saveBoardEvent, deleteBoardEvent,
   exportData, importData, generateId, migrateDataToFirebase,
-  getGameSettings, saveGameSettings
+  getGameSettings, saveGameSettings, recalculateAllFromLogs
 } from '../db/database';
 import { formatDate } from '../utils/helpers';
 import AdminShopPanel from './AdminShopPanel';
@@ -1099,6 +1099,44 @@ export default function AdminPanel({ onDataChange }) {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* إعادة الحساب من السجلات */}
+            <div style={{
+              marginTop: '1.5rem',
+              padding: '1.5rem',
+              backgroundColor: 'rgba(239, 68, 68, 0.08)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+            }}>
+              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.5rem', color: '#f87171' }}>
+                🔧 إعادة حساب جميع النقاط من السجلات
+              </h4>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem', lineHeight: 1.6 }}>
+                إذا لاحظت خطأً في نقاط الطلاب (نقاط الخريطة أو نقاط المتجر)، اضغط هذا الزر.
+                سيُعيد النظام حساب نقاط كل طالب من الصفر بناءً على سجل عملياته الكامل، مع ضمان
+                استقلالية نقاط الخريطة عن نقاط المتجر.
+              </p>
+              <p style={{ fontSize: '0.75rem', color: '#fbbf24', marginBottom: '1rem', fontWeight: 700 }}>
+                ⚠️ هذا الإجراء آمن تماماً ولا يحذف أي بيانات — فقط يُصلح الأرقام المحسوبة.
+              </p>
+              <button
+                onClick={() => {
+                  if (window.confirm('هل أنت متأكد من إعادة حساب جميع نقاط الطلاب من السجلات؟ هذا آمن ولكنه سيغير الأرقام الظاهرة.')) {
+                    const result = recalculateAllFromLogs();
+                    if (result.success) {
+                      alert(`✅ تم إعادة الحساب بنجاح! تم تصحيح بيانات ${result.count} طالب.`);
+                      refreshData();
+                    } else {
+                      alert('❌ حدث خطأ أثناء إعادة الحساب: ' + result.error);
+                    }
+                  }
+                }}
+                className="btn btn-danger"
+                style={{ gap: '0.5rem' }}
+              >
+                🔄 إعادة حساب جميع النقاط من السجلات
+              </button>
             </div>
           </div>
         )}

@@ -136,8 +136,9 @@ export default function ParentPortal() {
     // 1. Update the student in DB
     const updatedStudent = {
       ...student,
-      points: (student.points || 0) + earnedPoints,
-      totalCollectedPoints: (student.totalCollectedPoints || 0) + earnedPoints,
+      points: Math.max(0, (student.points || 0) + earnedPoints),
+      totalCollectedPoints: Math.max(0, (student.totalCollectedPoints || 0) + earnedPoints),
+      rewardPoints: Math.max(0, (student.rewardPoints || 0) + earnedPoints), // يجب أن يتأثر رصيد المتجر أيضاً بنقاط التحدي
       answeredQuizzes: {
         ...(student.answeredQuizzes || {}),
         [activeQuiz.id]: {
@@ -158,6 +159,7 @@ export default function ParentPortal() {
     setCurrentView('student');
     setStudentTab('dashboard');
   };
+
 
   const [dynamicValues, setDynamicValues] = useState({});
 
