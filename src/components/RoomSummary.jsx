@@ -9,7 +9,10 @@ export default function RoomSummary({ room, onEnter, onEdit, onArchive }) {
   
   // حساب الإحصائيات الحية للغرفة
   const totalPlayers = players.length;
-  const leader = players.find(p => p.rank === 1);
+  // نحسب المتصدر في الوقت الفعلي بناءً على النقاط الحالية، وليس حقل rank المخزّن
+  // حقل rank قد يكون قديماً إذا تزامنت البيانات من Firebase بدون إعادة حساب الترتيب
+  const leader = [...players].sort((a, b) => (b.points || 0) - (a.points || 0))[0];
+
   
   // حساب متوسط نسبة إنجاز النسخة بالكامل
   const averageProgress = totalPlayers > 0 

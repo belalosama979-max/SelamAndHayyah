@@ -6,7 +6,7 @@ import {
   getCards, saveCard, deleteCard,
   getBoardEvents, saveBoardEvent, deleteBoardEvent,
   exportData, importData, generateId, migrateDataToFirebase,
-  getGameSettings, saveGameSettings, recalculateAllFromLogs
+  getGameSettings, saveGameSettings, recalculateAllFromLogs, recalculateFromLogsBeforeDate
 } from '../db/database';
 import { formatDate } from '../utils/helpers';
 import AdminShopPanel from './AdminShopPanel';
@@ -1099,6 +1099,44 @@ export default function AdminPanel({ onDataChange }) {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* استعادة البيانات لتاريخ محدد */}
+            <div style={{
+              marginTop: '1.5rem',
+              padding: '1.5rem',
+              backgroundColor: 'rgba(245, 158, 11, 0.08)',
+              borderRadius: 'var(--radius-md)',
+              border: '2px solid rgba(245, 158, 11, 0.4)',
+            }}>
+              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.5rem', color: '#fbbf24' }}>
+                ⏮️ استعادة البيانات لما قبل 11 أغسطس 2026
+              </h4>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', lineHeight: 1.6 }}>
+                يُعيد هذا الزر حساب نقاط جميع الطلاب بناءً على سجلات العمليات قبل 11/8/2026 فقط.
+                ستُلغى أي عمليات أو مشتريات تمّت بعد هذا التاريخ وتُعاد النقاط لحالتها السابقة.
+              </p>
+              <p style={{ fontSize: '0.78rem', color: '#f87171', marginBottom: '1rem', fontWeight: 700 }}>
+                ⚠️ تحذير: هذه العملية ستحذف السجلات والمشتريات التي صارت بعد 11/8/2026 من النظام نهائياً.
+                قم بتصدير بيانات احتياطية قبل المتابعة إذا أردت الرجوع لاحقاً.
+              </p>
+              <button
+                onClick={() => {
+                  if (window.confirm('⚠️ تأكيد استعادة البيانات\n\nهذا سيحذف جميع سجلات العمليات والمشتريات التي صارت بعد 11/8/2026 ويعيد حساب نقاط الطلاب لما كانت عليه قبل هذا التاريخ.\n\nهل أنت متأكد؟')) {
+                    const result = recalculateFromLogsBeforeDate('2026-08-11T23:59:59.999Z');
+                    if (result.success) {
+                      alert(`✅ تمت الاستعادة بنجاح!\n• تم تصحيح بيانات ${result.playersCount} طالب\n• سجلات محذوفة: ${result.removedLogs}\n• مشتريات ملغاة: ${result.removedPrizes}`);
+                      refreshData();
+                    } else {
+                      alert('❌ حدث خطأ أثناء الاستعادة: ' + result.error);
+                    }
+                  }
+                }}
+                className="btn btn-gold"
+                style={{ gap: '0.5rem' }}
+              >
+                ⏮️ استعادة نقاط الطلاب لما قبل 11/8/2026
+              </button>
             </div>
 
             {/* إعادة الحساب من السجلات */}

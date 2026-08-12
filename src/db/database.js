@@ -1258,6 +1258,120 @@ export const recalculateAllFromLogs = () => {
   }
 };
 
+// --- استعادة البيانات لتاريخ محدد (Restore to Date) ---
+// تُعيد هذه الدالة بناء حالة كل طالب بناءً على سجلات العمليات والمشتريات قبل تاريخ قطع محدد فقط
+// تُلغي أي عمليات أو مشتريات بعد هذا التاريخ
+export const recalculateFromLogsBeforeDate = (cutoffDateISO) => {
+  try {
+    const cutoff = new Date(cutoffDateISO);
+    const allLogs = getAllLogs();
+    const allPlayers = getAllPlayers();
+    const allPrizeRequests = getAllPrizeRequests();
+    const events = getBoardEvents();
+    const rewards = getRewards();
+    const { targetPoints: tp, boardSize: bs } = getGameSettings();
+    const pps = tp / bs;
+
+    // المشتريات المعتمدة فقط قبل تاريخ القطع (delivered أو approved)
+    const validPrizeRequests = allPrizeRequests.filter(r => {
+      const reqDate = new Date(r.createdAt || r.updatedAt || '2000-01-01');
+      return reqDate < cutoff;
+    });
+
+    const updatedPlayers = allPlayers.map(player => {
+      // فلترة سجلات هذا الطالب قبل تاريخ القطع فقط
+      const playerLogs = allLogs
+        .filter(l => l.playerId === player.id && new Date(l.timestamp) < cutoff)
+        .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+      let points = 0;
+      let rewardPoints = 0;
+      let totalCollectedPoints = 0;
+      let position = 1;
+      let lastCardApplied = null;
+      let hasFinished = false;
+
+      playerLogs.forEach(log => {
+        // نقاط الخريطة: pointsApplied يشمل تأثير السلم/الأفعى
+        points = Math.max(0, Math.min(tp, points + log.pointsApplied));
+
+        // نقاط المتجر: نستخدم cardValue إذا متوفر (سجلات جديدة)، وإلا pointsApplied
+        const rawCardValue = log.cardValue !== undefined ? log.cardValue : log.pointsApplied;
+        rewardPoints = Math.max(0, rewardPoints + rawCardValue);
+        totalCollectedPoints = Math.max(0, totalCollectedPoints + rawCardValue);
+
+        let tempPos = 1 + Math.floor(points / pps);
+        if (tempPos > bs) { tempPos = bs; hasFinished = true; }
+        position = tempPos;
+
+        // إعادة تطبيق السلم/الأفعى للسجلات الجديدة فقط (التي تحمل cardValue)
+        if (log.cardValue !== undefined) {
+          const ev = events.find(e => e.startPosition === position);
+          if (ev) {
+            position = ev.endPosition;
+            if (ev.endPosition === bs) { points = tp; hasFinished = true; }
+            else { points = (ev.endPosition - 1) * pps; }
+          }
+        }
+
+        if (points >= tp) hasFinished = true;
+        lastCardApplied = log.cardName;
+      });
+
+      // حساب المصروف في المتجر قبل تاريخ القطع فقط
+      const playerPrizesBeforeCutoff = validPrizeRequests.filter(
+        r => r.playerId === player.id && (r.status === 'delivered' || r.status === 'approved')
+      );
+      const totalSpentBeforeCutoff = playerPrizesBeforeCutoff.reduce(
+        (sum, r) => sum + (r.pointsUsed || 0), 0
+      );
+
+      // الرصيد النهائي = المجموع المجمّع - المصروف المعتمد
+      const finalRewardPoints = Math.max(0, totalCollectedPoints - totalSpentBeforeCutoff);
+
+      return {
+        ...player,
+        points,
+        rewardPoints: finalRewardPoints,
+        totalCollectedPoints,
+        totalSpent: totalSpentBeforeCutoff,
+        position,
+        progressPercentage: Math.min(100, Math.round((points / tp) * 100)),
+        lastCardApplied,
+        hasFinished
+      };
+    });
+
+    // حفظ اللاعبين المُحدَّثين
+    setLocalItem(KEYS.PLAYERS, JSON.stringify(updatedPlayers));
+
+    // فلترة سجلات العمليات — الاحتفاظ فقط بالسجلات قبل تاريخ القطع
+    const logsBeforeCutoff = allLogs.filter(l => new Date(l.timestamp) < cutoff);
+    setLocalItem(KEYS.LOGS, JSON.stringify(logsBeforeCutoff));
+
+    // فلترة طلبات المتجر — الاحتفاظ فقط بالطلبات قبل تاريخ القطع
+    setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify(validPrizeRequests));
+
+    // إعادة حساب الرتب لكل غرفة
+    const rooms = getRooms();
+    rooms.forEach(room => recalculateRanks(room.id));
+
+    window.dispatchEvent(new Event('db_sync'));
+
+    const removedLogs = allLogs.length - logsBeforeCutoff.length;
+    const removedPrizes = allPrizeRequests.length - validPrizeRequests.length;
+    return {
+      success: true,
+      playersCount: updatedPlayers.length,
+      removedLogs,
+      removedPrizes
+    };
+  } catch(e) {
+    console.error('recalculateFromLogsBeforeDate error:', e);
+    return { success: false, error: e.message };
+  }
+};
+
 // --- تصدير واستيراد البيانات (Backup) ---
 
 export const exportData = () => {
