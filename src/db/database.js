@@ -1178,6 +1178,7 @@ export const recalculateAllFromLogs = () => {
   try {
     const allLogs = getAllLogs();
     const allPlayers = getAllPlayers();
+    const allPrizeRequests = getAllPrizeRequests();
     const events = getBoardEvents();
     const { targetPoints: tp, boardSize: bs } = getGameSettings();
     const pps = tp / bs;
@@ -1229,14 +1230,26 @@ export const recalculateAllFromLogs = () => {
         lastCardApplied = log.cardName;
       });
 
-      // rewardPoints النهائي = إجمالي المجمع - المنفق في المتجر
-      const finalRewardPoints = Math.max(0, totalCollectedPoints - (player.totalSpent || 0));
+      // حساب المصروف الحقيقي من سجلات طلبات المتجر مباشرة
+      // نُدرج كل الطلبات ما عدا المرفوضة صراحةً (الطلبات القديمة بدون status تُعتبر صالحة)
+      const playerPrizes = allPrizeRequests.filter(
+        r => r.playerId === player.id &&
+             r.status !== 'rejected' &&
+             r.status !== 'cancelled'
+      );
+      const calculatedTotalSpent = playerPrizes.reduce(
+        (sum, r) => sum + (r.pointsUsed || 0), 0
+      );
+
+      // rewardPoints النهائي = إجمالي المجمع - المنفق الحقيقي في المتجر
+      const finalRewardPoints = Math.max(0, totalCollectedPoints - calculatedTotalSpent);
 
       return {
         ...player,
         points,
         rewardPoints: finalRewardPoints,
         totalCollectedPoints,
+        totalSpent: calculatedTotalSpent,
         position,
         progressPercentage: Math.min(100, Math.round((points / tp) * 100)),
         lastCardApplied,
@@ -1319,8 +1332,12 @@ export const recalculateFromLogsBeforeDate = (cutoffDateISO) => {
       });
 
       // حساب المصروف في المتجر قبل تاريخ القطع فقط
+      // نُدرج كل الطلبات ما عدا المرفوضة صراحةً (rejected/cancelled)
+      // الطلبات القديمة بدون حقل status تُعتبر صالحة (النقاط خُصمت فعلاً عند الطلب)
       const playerPrizesBeforeCutoff = validPrizeRequests.filter(
-        r => r.playerId === player.id && (r.status === 'delivered' || r.status === 'approved')
+        r => r.playerId === player.id &&
+             r.status !== 'rejected' &&
+             r.status !== 'cancelled'
       );
       const totalSpentBeforeCutoff = playerPrizesBeforeCutoff.reduce(
         (sum, r) => sum + (r.pointsUsed || 0), 0
