@@ -1,7 +1,7 @@
 import AvatarDisplay from './AvatarDisplay';
 import React, { useState, useEffect, useMemo } from 'react';
 import { getAllPlayers, getRooms, getAllLogs, getBoardEvents, getAllPrizeRequests, getRewards, orderPrize, savePlayer, recordPlayerVisit, getQuizzes } from '../db/database';
-import { getRemainingPoints } from '../utils/helpers';
+
 import { isFlashSaleActive, getEffectivePointsCost, isItemOnSale } from '../utils/flashSale';
 import FlashSaleBanner from './FlashSaleBanner';
 import Board from './Board';
@@ -43,7 +43,7 @@ export default function ParentPortal() {
   const [allEvents, setAllEvents] = useState([]);
   const [allPrizeRequests, setAllPrizeRequests] = useState([]);
   const [rewards, setRewards] = useState([]);
-  const [sortMode, setSortMode] = useState('journey'); // Added sort mode
+
 
   const loadData = () => {
     // Load fresh data
@@ -215,15 +215,18 @@ export default function ParentPortal() {
     return allPlayers.filter(p => p.roomId === student.roomId);
   }, [student, allPlayers]);
 
-  const sortedRoomPlayers = useMemo(() => {
-    return [...studentRoomPlayers].sort((a, b) => {
-      if (sortMode === 'journey') {
-        return (b.points || 0) - (a.points || 0);
-      } else {
-        return (b.totalCollectedPoints || 0) - (a.totalCollectedPoints || 0);
-      }
-    });
-  }, [studentRoomPlayers, sortMode]);
+  const storeLeaderboard = useMemo(() => {
+    return [...allPlayers]
+      .sort((a, b) => (b.rewardPoints || 0) - (a.rewardPoints || 0));
+  }, [allPlayers]);
+
+  const studentStoreRank = useMemo(() => {
+    if (!student) return null;
+    const allSorted = [...allPlayers].sort((a, b) => (b.rewardPoints || 0) - (a.rewardPoints || 0));
+    const idx = allSorted.findIndex(p => p.id === student.id);
+    return idx >= 0 ? idx + 1 : null;
+  }, [student, allPlayers]);
+
 
   const studentLogs = useMemo(() => {
     if (!student) return [];
@@ -395,11 +398,17 @@ export default function ParentPortal() {
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', backgroundColor: 'var(--bg-accent)', padding: '0.4rem 0.8rem', borderRadius: '1rem' }}>
                     👥 الغرفة: {allRooms.find(r => r.id === student.roomId)?.name || 'غير محدد'}
                   </span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', backgroundColor: 'var(--bg-accent)', padding: '0.4rem 0.8rem', borderRadius: '1rem' }}>
-                    🏅 الترتيب الحالي: {student.rank}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', backgroundColor: 'rgba(251,191,36,0.15)', padding: '0.4rem 0.8rem', borderRadius: '1rem', color: 'var(--gold)' }}>
+                    🎁 رصيد المتجر: <strong>{student.rewardPoints || 0} ن</strong>
                   </span>
+                  {studentStoreRank && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', backgroundColor: 'rgba(52,211,153,0.15)', padding: '0.4rem 0.8rem', borderRadius: '1rem', color: '#34d399' }}>
+                      🏆 ترتيبك بين الطلاب: #{studentStoreRank}
+                    </span>
+                  )}
                 </div>
               </div>
+
             </div>
 
             {/* Navigation Tabs */}
@@ -408,13 +417,13 @@ export default function ParentPortal() {
                 onClick={() => setStudentTab('dashboard')}
                 className={`btn ${studentTab === 'dashboard' ? 'btn-primary' : 'btn-secondary'}`}
               >
-                📊 لوحة الطالب والخريطة
+                📊 لوحة الطالب
               </button>
               <button 
                 onClick={() => setStudentTab('leaderboard')}
                 className={`btn ${studentTab === 'leaderboard' ? 'btn-primary' : 'btn-secondary'}`}
               >
-                🏆 لوحة ترتيب الغرفة
+                🏆 الأوائل (نقاط المتجر)
               </button>
               <button 
                 onClick={() => setStudentTab('shop')}
@@ -433,71 +442,34 @@ export default function ParentPortal() {
             {/* TAB: DASHBOARD */}
             {studentTab === 'dashboard' && (
               <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                {/* الإحصائيات والمؤشرات */}
-                <div className="mobile-stat-grid">
-                  <div className="stat-card" style={{ padding: '1.5rem' }}>
-                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>نقاط الرحلة الحالية</div>
-                    <div style={{ fontSize: '2.5rem', fontWeight: 900, color: '#38bdf8' }}>{student.points}</div>
-                  </div>
-                  <div className="stat-card" style={{ padding: '1.5rem' }}>
-                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>النقاط المتبقية للختمة</div>
-                    <div style={{ fontSize: '2.5rem', fontWeight: 900, color: 'var(--text-primary)' }}>{student.progressPercentage >= 100 ? '🏆' : Math.max(0, getRemainingPoints(student.points))}</div>
-                  </div>
-                  <div className="stat-card" style={{ padding: '1.5rem' }}>
-                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>نسبة التقدم</div>
-                    <div style={{ fontSize: '2.5rem', fontWeight: 900, color: 'var(--success)' }}>{student.progressPercentage}%</div>
-                    <div className="progress-bar-container" style={{ marginTop: '0.5rem', height: '6px' }}>
-                      <div className="progress-bar-fill" style={{ width: `${student.progressPercentage}%`, backgroundColor: 'var(--success)' }}></div>
-                    </div>
-                  </div>
-                  <div className="stat-card" style={{ padding: '1.5rem' }}>
+                {/* بطاقات رصيد المتجر */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+                  <div className="stat-card" style={{ padding: '2rem', textAlign: 'center', borderTop: '3px solid var(--gold)' }}>
+                    <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🎁</div>
                     <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>رصيد متجر الجوائز</div>
-                    <div style={{ fontSize: '2.5rem', fontWeight: 900, color: 'var(--gold)' }}>{student.rewardPoints}</div>
+                    <div style={{ fontSize: '3rem', fontWeight: 900, color: 'var(--gold)' }}>{student.rewardPoints || 0}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>نقطة متاحة</div>
+                  </div>
+                  <div className="stat-card" style={{ padding: '2rem', textAlign: 'center', borderTop: '3px solid #34d399' }}>
+                    <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🏆</div>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>ترتيبك بين جميع الطلاب</div>
+                    <div style={{ fontSize: '3rem', fontWeight: 900, color: '#34d399' }}>
+                      {studentStoreRank ? `#${studentStoreRank}` : '—'}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>حسب نقاط المتجر</div>
+                  </div>
+                  <div className="stat-card" style={{ padding: '2rem', textAlign: 'center', borderTop: '3px solid #a78bfa' }}>
+                    <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🛍️</div>
+                    <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>عدد طلبات المتجر</div>
+                    <div style={{ fontSize: '3rem', fontWeight: 900, color: '#a78bfa' }}>{studentPrizes.length}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>طلب مقدَّم</div>
                   </div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-                  {/* سجل الإنجازات (Timeline) */}
-                  <div className="glass-panel" style={{ padding: '1.5rem', minWidth: '300px' }}>
-                    <h3 style={{ fontSize: '1.2rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-                      ⏱️ سجل التقدم وآخر الإنجازات
-                    </h3>
-                    {studentLogs.length > 0 ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '350px', overflowY: 'auto', paddingRight: '0.5rem' }}>
-                        {studentLogs.map((log) => (
-                          <div key={log.id} style={{ 
-                            display: 'flex', 
-                            alignItems: 'flex-start', 
-                            gap: '1rem',
-                            padding: '0.75rem',
-                            backgroundColor: 'var(--bg-primary)',
-                            borderRadius: 'var(--radius-sm)',
-                            borderLeft: `3px solid ${log.pointsApplied > 0 ? 'var(--success)' : (log.pointsApplied < 0 ? 'var(--danger)' : 'var(--text-muted)')}`
-                          }}>
-                            <div style={{ 
-                              fontSize: '1.2rem', 
-                              fontWeight: 900, 
-                              color: log.pointsApplied > 0 ? 'var(--success)' : (log.pointsApplied < 0 ? 'var(--danger)' : 'var(--text-muted)'),
-                              minWidth: '50px',
-                              textAlign: 'center'
-                            }}>
-                              {log.pointsApplied > 0 ? `+${log.pointsApplied}` : log.pointsApplied}
-                            </div>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontWeight: 700, marginBottom: '0.2rem' }}>{log.cardName}</div>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                {new Date(log.timestamp).toLocaleString('ar-SA')}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>لا توجد سجلات بعد.</div>
-                    )}
-                  </div>
 
                   {/* الجوائز المشتراة */}
+
                   <div className="glass-panel" style={{ padding: '1.5rem', minWidth: '300px' }}>
                     <h3 style={{ fontSize: '1.2rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
                       🎁 سجل طلبات المتجر
@@ -545,96 +517,60 @@ export default function ParentPortal() {
                   </div>
                 </div>
 
-                {/* الخريطة المصغرة لجميع طلاب الغرفة */}
-                <div className="glass-panel" style={{ padding: '1.5rem', marginTop: '1rem' }}>
-                  <h3 style={{ fontSize: '1.2rem', marginBottom: '1rem', textAlign: 'center', color: '#14b8a6' }}>
-                    📍 موقع الطالب على الخريطة بين زملائه
+                {/* بطاقة السر — بدلاً من الخريطة */}
+                <div className="glass-panel" style={{
+                  padding: '3rem', textAlign: 'center',
+                  background: 'linear-gradient(135deg, rgba(79,70,229,0.15) 0%, rgba(139,92,246,0.15) 50%, rgba(6,182,212,0.1) 100%)',
+                  border: '1px solid rgba(139,92,246,0.3)',
+                  borderRadius: 'var(--radius-lg)',
+                  position: 'relative', overflow: 'hidden'
+                }}>
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(139,92,246,0.03) 10px, rgba(139,92,246,0.03) 20px)', pointerEvents: 'none' }} />
+                  <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🔒</div>
+                  <h3 style={{ fontSize: '1.5rem', fontWeight: 900, color: '#a78bfa', marginBottom: '1rem' }}>
+                    الموقع على الخريطة سري
                   </h3>
-                  <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-                    توضح الخريطة مواقع جميع الطلاب في نفس الحلقة، وتمييز الطالب الحالي للتركيز على مساره.
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', lineHeight: 1.8, maxWidth: '450px', margin: '0 auto 1.5rem' }}>
+                    يتابع ولي الأمر نقاط المتجر فقط.<br />
+                    موقع الطالب على خريطة الرحلة سيُكشف عند الإعلان الرسمي!
                   </p>
-                  
-                  <div style={{ 
-                    border: '1px solid var(--border-color)', 
-                    borderRadius: 'var(--radius-md)', 
-                    overflow: 'hidden',
-                    backgroundColor: 'var(--bg-secondary)',
-                    padding: '1rem'
-                  }}>
-                    <Board 
-                      players={studentRoomPlayers} // Show all room players
-                      boardEvents={allEvents}
-                      cards={[]}
-                      animatingPlayerId={null}
-                      animationType={null}
-                      activePlayer={student}
-                      showYouAreHere={true}
-                      setActivePlayer={() => {}}
-                      onApplyCard={() => {}}
-                      onUndo={() => {}}
-                      logs={[]}
-                    />
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 2rem', borderRadius: '2rem', background: 'linear-gradient(90deg, #4f46e5, #7c3aed)', color: 'white', fontWeight: 700, fontSize: '1rem' }}>
+                    ⏳ ترقّب لحظة الإعلان...
                   </div>
                 </div>
               </div>
             )}
 
+
             {/* TAB: LEADERBOARD */}
             {studentTab === 'leaderboard' && (
               <div className="fade-in glass-panel" style={{ padding: '2rem' }}>
-                <h3 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', textAlign: 'center', color: '#14b8a6' }}>
-                  🏆 لوحة صدارة الشعبة ({allRooms.find(r => r.id === student.roomId)?.name})
+                <h3 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', textAlign: 'center', color: 'var(--gold)' }}>
+                  🏆 لوحة الأوائل — نقاط المتجر
                 </h3>
-                
-                {/* Toggle Sort Mode */}
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '2rem' }}>
-                  <button 
-                    onClick={() => setSortMode('journey')}
-                    className={`btn ${sortMode === 'journey' ? 'btn-primary' : 'btn-secondary'}`}
-                    style={{ padding: '0.75rem 1.25rem', fontSize: 'var(--text-sm)', flex: '1', minWidth: '200px', maxWidth: '320px' }}
-                  >
-                    📍 تقدم الخريطة (الرحلة)
-                  </button>
-                  <button 
-                    onClick={() => setSortMode('season')}
-                    className={`btn ${sortMode === 'season' ? 'btn-gold' : 'btn-secondary'}`}
-                    style={{ padding: '0.75rem 1.25rem', fontSize: 'var(--text-sm)', flex: '1', minWidth: '200px', maxWidth: '320px' }}
-                  >
-                    🌟 إجمالي تجميع الموسم
-                  </button>
-                </div>
+                <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: '2rem', fontSize: '0.9rem' }}>
+                  ترتيب جميع الطلاب من كل الغرف بناءً على رصيد متجر الجوائز فقط
+                </p>
 
-                {/* Top 3 Podium */}
-                {sortedRoomPlayers.length >= 3 && (
+                {storeLeaderboard.length >= 3 && (
                   <div className="leaderboard-podium" style={{ marginBottom: '2rem' }}>
-                    {/* Second Place */}
                     <div className="glass-panel podium-card" style={{ borderTop: '4px solid #94a3b8' }}>
                       <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🥈</div>
-                      <div><AvatarDisplay avatar={sortedRoomPlayers[1].avatar} size="2.5rem" /></div>
-                      <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: '0.5rem 0', color: 'var(--text-primary)' }}>{sortedRoomPlayers[1].name}</h3>
-                      <div style={{ fontWeight: 800, color: sortMode === 'journey' ? '#93c5fd' : '#fcd34d', fontSize: '1.3rem' }}>
-                        {sortMode === 'journey' ? sortedRoomPlayers[1].points : sortedRoomPlayers[1].totalCollectedPoints} ن
-                      </div>
+                      <div><AvatarDisplay avatar={storeLeaderboard[1].avatar} size="2.5rem" /></div>
+                      <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: '0.5rem 0', color: 'var(--text-primary)' }}>{storeLeaderboard[1].name}</h3>
+                      <div style={{ fontWeight: 800, color: 'var(--gold)', fontSize: '1.3rem' }}>{storeLeaderboard[1].rewardPoints || 0} ن</div>
                     </div>
-
-                    {/* First Place */}
                     <div className="glass-panel podium-card first-place">
                       <div style={{ fontSize: '3rem', marginBottom: '0.5rem', animation: 'bounce 2s infinite' }}>🥇</div>
-                      <div><AvatarDisplay avatar={sortedRoomPlayers[0].avatar} size="3rem" /></div>
-                      <h3 style={{ fontSize: '1.2rem', fontWeight: 900, margin: '0.5rem 0', color: 'var(--gold)' }}>{sortedRoomPlayers[0].name}</h3>
-                      <div style={{ fontWeight: 900, color: sortMode === 'journey' ? '#93c5fd' : '#fcd34d', fontSize: '1.5rem' }}>
-                        {sortMode === 'journey' ? sortedRoomPlayers[0].points : sortedRoomPlayers[0].totalCollectedPoints} ن
-                      </div>
+                      <div><AvatarDisplay avatar={storeLeaderboard[0].avatar} size="3rem" /></div>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: 900, margin: '0.5rem 0', color: 'var(--gold)' }}>{storeLeaderboard[0].name}</h3>
+                      <div style={{ fontWeight: 900, color: 'var(--gold)', fontSize: '1.5rem' }}>{storeLeaderboard[0].rewardPoints || 0} ن</div>
                     </div>
-
-                    {/* Third Place */}
                     <div className="glass-panel podium-card" style={{ borderTop: '4px solid #b45309' }}>
                       <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🥉</div>
-                      <div><AvatarDisplay avatar={sortedRoomPlayers[2].avatar} size="2.5rem" /></div>
-                      <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: '0.5rem 0', color: 'var(--text-primary)' }}>{sortedRoomPlayers[2].name}</h3>
-                      <div style={{ fontWeight: 800, color: sortMode === 'journey' ? '#93c5fd' : '#fcd34d', fontSize: '1.3rem' }}>
-                        {sortMode === 'journey' ? sortedRoomPlayers[2].points : sortedRoomPlayers[2].totalCollectedPoints} ن
-                      </div>
+                      <div><AvatarDisplay avatar={storeLeaderboard[2].avatar} size="2.5rem" /></div>
+                      <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: '0.5rem 0', color: 'var(--text-primary)' }}>{storeLeaderboard[2].name}</h3>
+                      <div style={{ fontWeight: 800, color: 'var(--gold)', fontSize: '1.3rem' }}>{storeLeaderboard[2].rewardPoints || 0} ن</div>
                     </div>
                   </div>
                 )}
@@ -645,24 +581,26 @@ export default function ParentPortal() {
                       <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
                         <th style={{ padding: '1rem' }}>الترتيب</th>
                         <th style={{ padding: '1rem' }}>الطالب</th>
-                        <th style={{ padding: '1rem', color: '#60a5fa' }}>📍 نقاط الرحلة</th>
-                        <th style={{ padding: '1rem', color: '#fcd34d' }}>🌟 نقاط الموسم</th>
-                        <th style={{ padding: '1rem', color: '#34d399' }}>🎁 متجر الجوائز</th>
+                        <th style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>الغرفة</th>
+                        <th style={{ padding: '1rem', color: 'var(--gold)' }}>🎁 رصيد المتجر</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {sortedRoomPlayers.map((p, idx) => (
-                        <tr key={p.id} style={{ backgroundColor: p.id === student.id ? 'rgba(59, 130, 246, 0.15)' : 'transparent', borderBottom: '1px solid var(--border-light)' }}>
+                      {storeLeaderboard.map((p, idx) => (
+                        <tr key={p.id} style={{ backgroundColor: p.id === student.id ? 'rgba(251,191,36,0.1)' : 'transparent', borderBottom: '1px solid var(--border-light)' }}>
                           <td style={{ padding: '1rem', fontWeight: 900 }}>
                             {idx === 0 ? <span style={{fontSize:'1.5rem'}}>🥇</span> : idx === 1 ? <span style={{fontSize:'1.5rem'}}>🥈</span> : idx === 2 ? <span style={{fontSize:'1.5rem'}}>🥉</span> : `#${idx + 1}`}
                           </td>
-                          <td style={{ padding: '1rem', fontWeight: 700, color: p.id === student.id ? '#38bdf8' : 'var(--text-primary)' }}>
+                          <td style={{ padding: '1rem', fontWeight: 700, color: p.id === student.id ? 'var(--gold)' : 'var(--text-primary)' }}>
                             <AvatarDisplay avatar={p.avatar} size="1.5rem" style={{ marginLeft: '0.5rem' }} /> {p.name}
-                            {p.id === student.id && <span style={{ marginRight: '0.5rem', fontSize: '0.8rem', color: 'var(--gold)' }}>(طالبك)</span>}
+                            {p.id === student.id && <span style={{ marginRight: '0.5rem', fontSize: '0.8rem', color: 'var(--gold)' }}>← طالبك</span>}
                           </td>
-                          <td style={{ padding: '1rem', color: '#93c5fd', fontWeight: sortMode === 'journey' ? 900 : 700 }}>{p.points}</td>
-                          <td style={{ padding: '1rem', color: '#fcd34d', fontWeight: sortMode === 'season' ? 900 : 700 }}>{p.totalCollectedPoints || 0}</td>
-                          <td style={{ padding: '1rem', color: '#34d399', fontWeight: 700 }}>{p.rewardPoints || 0}</td>
+                          <td style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                            {allRooms.find(r => r.id === p.roomId)?.name || '—'}
+                          </td>
+                          <td style={{ padding: '1rem', color: 'var(--gold)', fontWeight: 900, fontSize: '1.1rem' }}>
+                            {p.rewardPoints || 0} ن
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -670,6 +608,7 @@ export default function ParentPortal() {
                 </div>
               </div>
             )}
+
 
             {/* TAB: SHOP */}
             {studentTab === 'shop' && (
