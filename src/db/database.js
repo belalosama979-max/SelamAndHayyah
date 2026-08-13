@@ -1263,6 +1263,20 @@ export const recalculateAllFromLogs = () => {
     const rooms = getRooms();
     rooms.forEach(room => recalculateRanks(room.id));
 
+    // تحديث تاريخ آخر نشاط لكل غرفة بناءً على آخر سجل موجود فعلياً
+    const currentLogs = getAllLogs();
+    const roomsWithUpdatedDates = getRooms().map(room => {
+      const roomLogs = currentLogs.filter(l => l.roomId === room.id);
+      if (roomLogs.length > 0) {
+        const latestLog = roomLogs.reduce((latest, log) =>
+          new Date(log.timestamp) > new Date(latest.timestamp) ? log : latest
+        );
+        return { ...room, lastUsedAt: latestLog.timestamp };
+      }
+      return room;
+    });
+    setLocalItem(KEYS.ROOMS, JSON.stringify(roomsWithUpdatedDates));
+
     window.dispatchEvent(new Event('db_sync'));
     return { success: true, count: updatedPlayers.length };
   } catch(e) {
@@ -1369,9 +1383,20 @@ export const recalculateFromLogsBeforeDate = (cutoffDateISO) => {
     // فلترة طلبات المتجر — الاحتفاظ فقط بالطلبات قبل تاريخ القطع
     setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify(validPrizeRequests));
 
-    // إعادة حساب الرتب لكل غرفة
+    // إعادة حساب الرتب لكل غرفة وتحديث تاريخ آخر نشاط بناءً على آخر سجل قبل تاريخ القطع
     const rooms = getRooms();
-    rooms.forEach(room => recalculateRanks(room.id));
+    const roomsWithUpdatedDates = rooms.map(room => {
+      const roomLogs = logsBeforeCutoff.filter(l => l.roomId === room.id);
+      if (roomLogs.length > 0) {
+        const latestLog = roomLogs.reduce((latest, log) =>
+          new Date(log.timestamp) > new Date(latest.timestamp) ? log : latest
+        );
+        return { ...room, lastUsedAt: latestLog.timestamp };
+      }
+      return room;
+    });
+    setLocalItem(KEYS.ROOMS, JSON.stringify(roomsWithUpdatedDates));
+    roomsWithUpdatedDates.forEach(room => recalculateRanks(room.id));
 
     window.dispatchEvent(new Event('db_sync'));
 
