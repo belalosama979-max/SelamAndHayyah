@@ -377,7 +377,7 @@ export const initDatabase = () => {
 
             player.points = points;
             player.totalCollectedPoints = totalCollectedPoints;
-            player.rewardPoints = Math.max(0, totalCollectedPoints - (player.totalSpent || 0));
+            player.rewardPoints = totalCollectedPoints - (player.totalSpent || 0);
             player.position = position;
             player.lastCardApplied = lastCardApplied;
             player.hasFinished = hasFinished;
@@ -447,7 +447,7 @@ export const initDatabase = () => {
             if (players) {
               const pIndex = players.findIndex(p => p.id === targetReq.playerId);
               if (pIndex >= 0) {
-                players[pIndex].rewardPoints = Math.max(0, (players[pIndex].rewardPoints || 0) - 400);
+                players[pIndex].rewardPoints = (players[pIndex].rewardPoints || 0) - 400;
                 players[pIndex].totalSpent = (players[pIndex].totalSpent || 0) + 400;
                 playersChanged = true;
               }
@@ -796,9 +796,21 @@ export const saveReward = (reward) => {
 };
 
 export const deleteReward = (rewardId) => {
+  // عند حذف جائزة: أولاً ارفض الطلبات المعلقة (يُعيد النقاط للطلاب) ثم احذف جميع طلباتها
+  const allRequests = getAllPrizeRequests();
+  const relatedRequests = allRequests.filter(r => r.rewardId === rewardId);
+  relatedRequests.forEach(req => {
+    if (req.status !== 'rejected' && req.status !== 'cancelled') {
+      updatePrizeRequestStatus(req.id, 'rejected');
+    }
+  });
+  const cleanedRequests = getAllPrizeRequests().filter(r => r.rewardId !== rewardId);
+  setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify(cleanedRequests));
+
   let rewards = getRewards();
   rewards = rewards.filter(r => r.id !== rewardId);
   setLocalItem(KEYS.REWARDS, JSON.stringify(rewards));
+  window.dispatchEvent(new Event('db_sync'));
   return getRewards();
 };
 
@@ -1034,7 +1046,7 @@ export const applyCardToPlayer = (roomId, playerId, cardId, customValue = null) 
   // يتأثر فقط بقيمة البطاقة المطبّقة (pointsApplied = قيمة البطاقة الخام قبل السلم/الأفعى)
   // rewardPoints يُشتق دائماً من totalCollectedPoints - totalSpent لضمان الاتساق مع recalculate
   player.totalCollectedPoints = Math.max(0, (player.totalCollectedPoints || 0) + pointsApplied);
-  player.rewardPoints = Math.max(0, player.totalCollectedPoints - (player.totalSpent || 0));
+  player.rewardPoints = player.totalCollectedPoints - (player.totalSpent || 0);
 
 
   // تحديث البيانات في LocalStorage
@@ -1115,7 +1127,7 @@ export const undoLastLog = (roomId) => {
       // نقاط المتجر: نستخدم cardValue (قيمة البطاقة الخام) إذا متوفر، وإلا نستخدم pointsApplied
       // هذا يضمن أن السلالم والأفاعي لا تؤثر على رصيد المتجر
       const rawCardValue = log.cardValue !== undefined ? log.cardValue : log.pointsApplied;
-      rewardPoints = Math.max(0, rewardPoints + rawCardValue);
+      rewardPoints = rewardPoints + rawCardValue;
       totalCollectedPoints = Math.max(0, totalCollectedPoints + rawCardValue);
       
       let tempPos = 1 + Math.floor(points / upps);
@@ -1146,7 +1158,7 @@ export const undoLastLog = (roomId) => {
     // الحفاظ على الخصومات اللي تمت من المتجر (totalSpent) 
     // وبناء rewardPoints الجديد بناء عليها
     player.totalCollectedPoints = totalCollectedPoints;
-    player.rewardPoints = Math.max(0, totalCollectedPoints - (player.totalSpent || 0));
+    player.rewardPoints = totalCollectedPoints - (player.totalSpent || 0);
     player.position = position;
     player.lastCardApplied = lastCardApplied;
     player.hasFinished = hasFinished;
@@ -1204,7 +1216,7 @@ export const recalculateAllFromLogs = () => {
         // نقاط المتجر: نستخدم cardValue إذا كان متوفراً (سجلات جديدة)
         // أو pointsApplied للسجلات القديمة (قد تكون غير دقيقة إذا كانت ستتأثر بسلم/أفعى)
         const rawCardValue = log.cardValue !== undefined ? log.cardValue : log.pointsApplied;
-        rewardPoints = Math.max(0, rewardPoints + rawCardValue);
+        rewardPoints = rewardPoints + rawCardValue;
         totalCollectedPoints = Math.max(0, totalCollectedPoints + rawCardValue);
 
         let tempPos = 1 + Math.floor(points / pps);
@@ -1244,7 +1256,7 @@ export const recalculateAllFromLogs = () => {
       );
 
       // rewardPoints النهائي = إجمالي المجمع - المنفق الحقيقي في المتجر
-      const finalRewardPoints = Math.max(0, totalCollectedPoints - calculatedTotalSpent);
+      const finalRewardPoints = totalCollectedPoints - calculatedTotalSpent;
 
       return {
         ...player,
@@ -1326,7 +1338,7 @@ export const recalculateFromLogsBeforeDate = (cutoffDateISO) => {
 
         // نقاط المتجر: نستخدم cardValue إذا متوفر (سجلات جديدة)، وإلا pointsApplied
         const rawCardValue = log.cardValue !== undefined ? log.cardValue : log.pointsApplied;
-        rewardPoints = Math.max(0, rewardPoints + rawCardValue);
+        rewardPoints = rewardPoints + rawCardValue;
         totalCollectedPoints = Math.max(0, totalCollectedPoints + rawCardValue);
 
         let tempPos = 1 + Math.floor(points / pps);
@@ -1360,7 +1372,7 @@ export const recalculateFromLogsBeforeDate = (cutoffDateISO) => {
       );
 
       // الرصيد النهائي = المجموع المجمّع - المصروف المعتمد
-      const finalRewardPoints = Math.max(0, totalCollectedPoints - totalSpentBeforeCutoff);
+      const finalRewardPoints = totalCollectedPoints - totalSpentBeforeCutoff;
 
       return {
         ...player,
