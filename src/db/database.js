@@ -1031,9 +1031,11 @@ export const applyCardToPlayer = (roomId, playerId, cardId, customValue = null) 
   }
 
   // تحديث رصيد المشتريات ومجموع نقاط الموسم
-  // يتأثر فقط بقيمة البطاقة المطبّقة (pointsApplied)، وليس بتأثير السلم أو الأفعى
-  player.rewardPoints = Math.max(0, (player.rewardPoints || 0) + pointsApplied);
+  // يتأثر فقط بقيمة البطاقة المطبّقة (pointsApplied = قيمة البطاقة الخام قبل السلم/الأفعى)
+  // rewardPoints يُشتق دائماً من totalCollectedPoints - totalSpent لضمان الاتساق مع recalculate
   player.totalCollectedPoints = Math.max(0, (player.totalCollectedPoints || 0) + pointsApplied);
+  player.rewardPoints = Math.max(0, player.totalCollectedPoints - (player.totalSpent || 0));
+
 
   // تحديث البيانات في LocalStorage
   setLocalItem(KEYS.PLAYERS, JSON.stringify(players));
