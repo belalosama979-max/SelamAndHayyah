@@ -476,40 +476,26 @@ export const initDatabase = () => {
     try {
       const migrationKey = 'board_events_rebalanced_v2';
       if (!localStorage.getItem(migrationKey)) {
-        const eventsStr = localStorage.getItem(KEYS.EVENTS);
-        if (eventsStr) {
-          // استبدال الأحداث القديمة بالتوزيع الجديد المتوازن
-          const newEvents = [
-            // سلالم (Ladders) - توزيع متوازن: +11 إلى +14 خانة
-            { id: "event-ladder-1", type: "ladder", startPosition: 6,  endPosition: 17, description: "المحافظة على صلاة الفجر في جماعة" },
-            { id: "event-ladder-2", type: "ladder", startPosition: 18, endPosition: 30, description: "حفظ ورد الحفظ الأسبوعي كاملاً" },
-            { id: "event-ladder-3", type: "ladder", startPosition: 38, endPosition: 51, description: "بر الوالدين ومساعدتهم في المنزل" },
-            { id: "event-ladder-4", type: "ladder", startPosition: 59, endPosition: 73, description: "التصدق والمشاركة في عمل تطوعي" },
-            { id: "event-ladder-5", type: "ladder", startPosition: 77, endPosition: 91, description: "التفوق الدراسي ونشر الخير بين الزملاء" },
-            // أفاعي (Snakes) - توزيع متوازن: -11 إلى -14 خانة
-            { id: "event-snake-1", type: "snake", startPosition: 26, endPosition: 15, description: "التفوه بكلمات سيئة أو الغيبة" },
-            { id: "event-snake-2", type: "snake", startPosition: 45, endPosition: 33, description: "إهمال الواجبات المدرسية والتكاسل" },
-            { id: "event-snake-3", type: "snake", startPosition: 54, endPosition: 42, description: "عقوق الوالدين أو إساءة الأدب" },
-            { id: "event-snake-4", type: "snake", startPosition: 68, endPosition: 57, description: "التخلف عن صلاة الجماعة لعدة أيام" },
-            { id: "event-snake-5", type: "snake", startPosition: 88, endPosition: 74, description: "الكبر والغرور واحتقار الآخرين" },
-          ];
-          setLocalItem(KEYS.EVENTS, JSON.stringify(newEvents), true);
-          // رفع الأحداث الجديدة إلى Firebase إذا كان المزامنة نشطة
-          if (syncStarted) {
-            setDoc(doc(db, 'data', KEYS.EVENTS), { value: JSON.stringify(newEvents), lastUpdated: Date.now() }).catch(console.error);
-          }
-        }
-        // تسجيل الـ migration كمنجز لمنع الإعادة
+        // التوزيع الجديد المتوازن للسلالم والأفاعي
+        const newEvents = [
+          { id: "event-ladder-1", type: "ladder", startPosition: 6,  endPosition: 17, description: "المحافظة على صلاة الفجر في جماعة" },
+          { id: "event-ladder-2", type: "ladder", startPosition: 18, endPosition: 30, description: "حفظ ورد الحفظ الأسبوعي كاملاً" },
+          { id: "event-ladder-3", type: "ladder", startPosition: 38, endPosition: 51, description: "بر الوالدين ومساعدتهم في المنزل" },
+          { id: "event-ladder-4", type: "ladder", startPosition: 59, endPosition: 73, description: "التصدق والمشاركة في عمل تطوعي" },
+          { id: "event-ladder-5", type: "ladder", startPosition: 77, endPosition: 91, description: "التفوق الدراسي ونشر الخير بين الزملاء" },
+          { id: "event-snake-1", type: "snake", startPosition: 26, endPosition: 15, description: "التفوه بكلمات سيئة أو الغيبة" },
+          { id: "event-snake-2", type: "snake", startPosition: 45, endPosition: 33, description: "إهمال الواجبات المدرسية والتكاسل" },
+          { id: "event-snake-3", type: "snake", startPosition: 54, endPosition: 42, description: "عقوق الوالدين أو إساءة الأدب" },
+          { id: "event-snake-4", type: "snake", startPosition: 68, endPosition: 57, description: "التخلف عن صلاة الجماعة لعدة أيام" },
+          { id: "event-snake-5", type: "snake", startPosition: 88, endPosition: 74, description: "الكبر والغرور واحتقار الآخرين" },
+        ];
+        // استخدام isInit=false وtimestamp عالٍ لضمان فوز الأحداث الجديدة على Firebase
+        const highTs = Date.now() + 9_999_999_999;
+        localStorage.setItem(KEYS.EVENTS, JSON.stringify(newEvents));
+        localStorage.setItem(KEYS.EVENTS + '_time', highTs.toString());
+        // رفع الأحداث الجديدة إلى Firebase
+        setDoc(doc(db, 'data', KEYS.EVENTS), { value: JSON.stringify(newEvents), lastUpdated: highTs }).catch(console.error);
         localStorage.setItem(migrationKey, '1');
-        // إعادة حساب مواقع جميع الطلاب من سجلاتهم بناءً على التوزيع الجديد
-        // نستخدم setTimeout لتأجيل الاستدعاء حتى يكتمل initDatabase أولاً
-        setTimeout(() => {
-          try {
-            recalculateAllFromLogs();
-          } catch(e2) {
-            console.error('Error recalculating players after board events migration:', e2);
-          }
-        }, 0);
       }
     } catch(e) {
       console.error('Error applying board events migration v2:', e);
@@ -1443,6 +1429,124 @@ export const recalculateFromLogsWithNewEvents = () => {
     return { success: true, count: updatedPlayers.length };
   } catch(e) {
     console.error('recalculateFromLogsWithNewEvents error:', e);
+    return { success: false, error: e.message };
+  }
+};
+
+// --- إعادة تشغيل كاملة من السجلات من نقطة الصفر مع التوزيع الجديد للسلالم والأفاعي ---
+// تحذف نقاط كل طالب وتعيد بناءها بطاقةً بطاقة من سجل العمليات.
+// المصدر: log.cardValue (القيمة الخام) → إذا غير موجود → قيمة البطاقة الحالية بالاسم → آخر مورد: log.pointsApplied
+// بعد كل بطاقة: يُطبَّق التوزيع الجديد للسلالم/الأفاعي على الخانة.
+// لا تُعدّل: totalCollectedPoints للمتجر، rewardPoints، totalSpent.
+export const replayAllLogsCorrectly = () => {
+  try {
+    const allLogs = getAllLogs();
+    const allPlayers = getAllPlayers();
+    const allPrizeRequests = getAllPrizeRequests();
+    const events = getBoardEvents(); // التوزيع الجديد
+    const cards = getCards();
+    const { targetPoints: tp, boardSize: bs } = getGameSettings();
+    const pps = tp / bs;
+
+    // جدول البحث: اسم البطاقة → قيمتها الحالية (للسجلات القديمة بدون cardValue)
+    const cardValueByName = {};
+    cards.forEach(c => { if (c.value !== null && c.value !== undefined) cardValueByName[c.name] = c.value; });
+
+    const updatedPlayers = allPlayers.map(player => {
+      const playerLogs = allLogs
+        .filter(l => l.playerId === player.id)
+        .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+      let points = 0;              // نقاط الخريطة (تتأثر بالسلم/الأفعى)
+      let rawTotal = 0;            // مجموع قيم البطاقات الخام فقط
+      let position = 1;
+      let lastCardApplied = null;
+      let hasFinished = false;
+
+      playerLogs.forEach(log => {
+        // استخراج القيمة الخام للبطاقة بالأولوية:
+        // 1. log.cardValue (الحقل الحديث – قيمة البطاقة قبل أي سلم/أفعى)
+        // 2. قيمة البطاقة الحالية من قائمة البطاقات (للسجلات القديمة)
+        // 3. log.pointsApplied كآخر مورد (قد يشمل تأثير السلم القديم)
+        let rawValue;
+        if (log.cardValue !== undefined && log.cardValue !== null) {
+          rawValue = log.cardValue;
+        } else if (cardValueByName[log.cardName] !== undefined) {
+          rawValue = cardValueByName[log.cardName];
+        } else {
+          rawValue = log.pointsApplied;
+        }
+
+        // تراكم النقاط الخام (للمتجر – لا تتأثر بالسلم/الأفعى)
+        rawTotal += rawValue;
+
+        // تطبيق النقطة على الخريطة
+        points = Math.max(0, Math.min(tp, points + rawValue));
+
+        // حساب الخانة الخام من النقاط
+        let tempPos = Math.min(bs, 1 + Math.floor(points / pps));
+        position = tempPos;
+
+        // تطبيق السلم أو الأفعى الجديد
+        const ev = events.find(e => e.startPosition === position);
+        if (ev) {
+          position = ev.endPosition;
+          if (ev.endPosition === bs) {
+            points = tp;
+            hasFinished = true;
+          } else {
+            points = (ev.endPosition - 1) * pps;
+          }
+        }
+
+        if (points >= tp) { hasFinished = true; position = bs; points = tp; }
+        lastCardApplied = log.cardName;
+      });
+
+      // حساب نقاط المتجر من سجلات الطلبات فقط
+      const playerPrizes = allPrizeRequests.filter(
+        r => r.playerId === player.id &&
+             r.status !== 'rejected' &&
+             r.status !== 'cancelled'
+      );
+      const totalSpent = playerPrizes.reduce((sum, r) => sum + (r.pointsUsed || 0), 0);
+      const rewardPoints = Math.max(0, rawTotal - totalSpent);
+
+      return {
+        ...player,
+        points,
+        rewardPoints,
+        totalCollectedPoints: Math.max(0, rawTotal),
+        totalSpent,
+        position,
+        progressPercentage: Math.min(100, Math.round((points / tp) * 100)),
+        lastCardApplied,
+        hasFinished
+      };
+    });
+
+    setLocalItem(KEYS.PLAYERS, JSON.stringify(updatedPlayers));
+
+    const rooms = getRooms();
+    rooms.forEach(room => recalculateRanks(room.id));
+
+    const currentLogs = getAllLogs();
+    const roomsWithUpdatedDates = getRooms().map(room => {
+      const roomLogs = currentLogs.filter(l => l.roomId === room.id);
+      if (roomLogs.length > 0) {
+        const latestLog = roomLogs.reduce((latest, log) =>
+          new Date(log.timestamp) > new Date(latest.timestamp) ? log : latest
+        );
+        return { ...room, lastUsedAt: latestLog.timestamp };
+      }
+      return room;
+    });
+    setLocalItem(KEYS.ROOMS, JSON.stringify(roomsWithUpdatedDates));
+
+    window.dispatchEvent(new Event('db_sync'));
+    return { success: true, count: updatedPlayers.length };
+  } catch(e) {
+    console.error('replayAllLogsCorrectly error:', e);
     return { success: false, error: e.message };
   }
 };
