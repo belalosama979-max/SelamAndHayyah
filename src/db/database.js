@@ -471,6 +471,50 @@ export const initDatabase = () => {
       console.error("Error fixing Omar Al-Rajoub:", e);
     }
 
+    // --- Migration: إعادة توزيع السلالم والأفاعي (v2) ---
+    // يعمل مرة واحدة فقط عند وجود التوزيع القديم غير المتوازن
+    try {
+      const migrationKey = 'board_events_rebalanced_v2';
+      if (!localStorage.getItem(migrationKey)) {
+        const eventsStr = localStorage.getItem(KEYS.EVENTS);
+        if (eventsStr) {
+          // استبدال الأحداث القديمة بالتوزيع الجديد المتوازن
+          const newEvents = [
+            // سلالم (Ladders) - توزيع متوازن: +11 إلى +14 خانة
+            { id: "event-ladder-1", type: "ladder", startPosition: 6,  endPosition: 17, description: "المحافظة على صلاة الفجر في جماعة" },
+            { id: "event-ladder-2", type: "ladder", startPosition: 18, endPosition: 30, description: "حفظ ورد الحفظ الأسبوعي كاملاً" },
+            { id: "event-ladder-3", type: "ladder", startPosition: 38, endPosition: 51, description: "بر الوالدين ومساعدتهم في المنزل" },
+            { id: "event-ladder-4", type: "ladder", startPosition: 59, endPosition: 73, description: "التصدق والمشاركة في عمل تطوعي" },
+            { id: "event-ladder-5", type: "ladder", startPosition: 77, endPosition: 91, description: "التفوق الدراسي ونشر الخير بين الزملاء" },
+            // أفاعي (Snakes) - توزيع متوازن: -11 إلى -14 خانة
+            { id: "event-snake-1", type: "snake", startPosition: 26, endPosition: 15, description: "التفوه بكلمات سيئة أو الغيبة" },
+            { id: "event-snake-2", type: "snake", startPosition: 45, endPosition: 33, description: "إهمال الواجبات المدرسية والتكاسل" },
+            { id: "event-snake-3", type: "snake", startPosition: 54, endPosition: 42, description: "عقوق الوالدين أو إساءة الأدب" },
+            { id: "event-snake-4", type: "snake", startPosition: 68, endPosition: 57, description: "التخلف عن صلاة الجماعة لعدة أيام" },
+            { id: "event-snake-5", type: "snake", startPosition: 88, endPosition: 74, description: "الكبر والغرور واحتقار الآخرين" },
+          ];
+          setLocalItem(KEYS.EVENTS, JSON.stringify(newEvents), true);
+          // رفع الأحداث الجديدة إلى Firebase إذا كان المزامنة نشطة
+          if (syncStarted) {
+            setDoc(doc(db, 'data', KEYS.EVENTS), { value: JSON.stringify(newEvents), lastUpdated: Date.now() }).catch(console.error);
+          }
+        }
+        // تسجيل الـ migration كمنجز لمنع الإعادة
+        localStorage.setItem(migrationKey, '1');
+        // إعادة حساب مواقع جميع الطلاب من سجلاتهم بناءً على التوزيع الجديد
+        // نستخدم setTimeout لتأجيل الاستدعاء حتى يكتمل initDatabase أولاً
+        setTimeout(() => {
+          try {
+            recalculateAllFromLogs();
+          } catch(e2) {
+            console.error('Error recalculating players after board events migration:', e2);
+          }
+        }, 0);
+      }
+    } catch(e) {
+      console.error('Error applying board events migration v2:', e);
+    }
+
   } finally {
     isInitializing = false;
   }
@@ -1295,6 +1339,177 @@ export const recalculateAllFromLogs = () => {
     return { success: true, count: updatedPlayers.length };
   } catch(e) {
     console.error('recalculateAllFromLogs error:', e);
+    return { success: false, error: e.message };
+  }
+};
+
+// --- إعادة حساب شاملة للطلاب من السجلات مع التوزيع الجديد للسلالم والأفاعي ---
+// تختلف عن recalculateAllFromLogs في أنها تعيد تطبيق السلالم/الأفاعي على جميع السجلات
+// (القديمة والجديدة) باستخدام القيمة الخام للبطاقة دائماً.
+// تُستخدم عند تغيير توزيع السلالم والأفاعي لضمان انعكاس التغيير على جميع الطلاب.
+export const recalculateFromLogsWithNewEvents = () => {
+  try {
+    const allLogs = getAllLogs();
+    const allPlayers = getAllPlayers();
+    const allPrizeRequests = getAllPrizeRequests();
+    const events = getBoardEvents();
+    const { targetPoints: tp, boardSize: bs } = getGameSettings();
+    const pps = tp / bs;
+
+    const updatedPlayers = allPlayers.map(player => {
+      const playerLogs = allLogs
+        .filter(l => l.playerId === player.id)
+        .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+      let points = 0;
+      let totalCollectedPoints = 0;
+      let position = 1;
+      let lastCardApplied = null;
+      let hasFinished = false;
+
+      playerLogs.forEach(log => {
+        // استخدام القيمة الخام للبطاقة دائماً (cardValue إذا توفر، وإلا pointsApplied)
+        // هذا يضمن أن نقاط اللاعب تُبنى فقط من قيم البطاقات الحقيقية
+        const rawValue = log.cardValue !== undefined ? log.cardValue : log.pointsApplied;
+        points = Math.max(0, Math.min(tp, points + rawValue));
+        totalCollectedPoints = Math.max(0, totalCollectedPoints + rawValue);
+
+        // حساب الموقع من النقاط
+        let tempPos = 1 + Math.floor(points / pps);
+        if (tempPos > bs) { tempPos = bs; hasFinished = true; }
+        position = tempPos;
+
+        // تطبيق السلم/الأفعى الجديد على الجميع (قديم وجديد)
+        const ev = events.find(e => e.startPosition === position);
+        if (ev) {
+          position = ev.endPosition;
+          if (ev.endPosition === bs) {
+            points = tp;
+            hasFinished = true;
+          } else {
+            points = (ev.endPosition - 1) * pps;
+          }
+        }
+
+        if (points >= tp) hasFinished = true;
+        lastCardApplied = log.cardName;
+      });
+
+      // حساب المصروف من المتجر من سجلات الطلبات
+      const playerPrizes = allPrizeRequests.filter(
+        r => r.playerId === player.id &&
+             r.status !== 'rejected' &&
+             r.status !== 'cancelled'
+      );
+      const calculatedTotalSpent = playerPrizes.reduce(
+        (sum, r) => sum + (r.pointsUsed || 0), 0
+      );
+      const finalRewardPoints = totalCollectedPoints - calculatedTotalSpent;
+
+      return {
+        ...player,
+        points,
+        rewardPoints: finalRewardPoints,
+        totalCollectedPoints,
+        totalSpent: calculatedTotalSpent,
+        position,
+        progressPercentage: Math.min(100, Math.round((points / tp) * 100)),
+        lastCardApplied,
+        hasFinished
+      };
+    });
+
+    setLocalItem(KEYS.PLAYERS, JSON.stringify(updatedPlayers));
+
+    // إعادة حساب الرتب لكل غرفة
+    const rooms = getRooms();
+    rooms.forEach(room => recalculateRanks(room.id));
+
+    // تحديث تاريخ آخر نشاط لكل غرفة
+    const currentLogs = getAllLogs();
+    const roomsWithUpdatedDates = getRooms().map(room => {
+      const roomLogs = currentLogs.filter(l => l.roomId === room.id);
+      if (roomLogs.length > 0) {
+        const latestLog = roomLogs.reduce((latest, log) =>
+          new Date(log.timestamp) > new Date(latest.timestamp) ? log : latest
+        );
+        return { ...room, lastUsedAt: latestLog.timestamp };
+      }
+      return room;
+    });
+    setLocalItem(KEYS.ROOMS, JSON.stringify(roomsWithUpdatedDates));
+
+    window.dispatchEvent(new Event('db_sync'));
+    return { success: true, count: updatedPlayers.length };
+  } catch(e) {
+    console.error('recalculateFromLogsWithNewEvents error:', e);
+    return { success: false, error: e.message };
+  }
+};
+
+// --- إعادة حساب مواقع الطلاب من totalCollectedPoints (الأسلوب الصحيح) ---
+// totalCollectedPoints = مجموع قيم البطاقات الخام فقط، لا يتأثر أبداً بالسلالم/الأفاعي.
+// هذه الدالة هي الطريقة الصحيحة لإعادة حساب المواقع بعد تغيير توزيع السلالم والأفاعي.
+// لا تُعدّل: rewardPoints، totalCollectedPoints، totalSpent، السجلات، أسماء الطلاب.
+export const recalculatePositionsFromTotalPoints = () => {
+  try {
+    const allPlayers = getAllPlayers();
+    const events = getBoardEvents();
+    const { targetPoints: tp, boardSize: bs } = getGameSettings();
+    const pps = tp / bs;
+
+    const updated = allPlayers.map(player => {
+      // النقاط الحقيقية = totalCollectedPoints (مجموع البطاقات الخام بدون سلالم/أفاعي)
+      // نرجع لـ player.points كاحتياط إذا لم يكن totalCollectedPoints موجوداً
+      const truePoints = Math.max(0, Math.min(tp,
+        player.totalCollectedPoints != null
+          ? player.totalCollectedPoints
+          : (player.points || 0)
+      ));
+
+      // نسبة التقدم الحقيقية مبنية على النقاط الخام (ثابتة، لا تتغير بالسلالم/الأفاعي)
+      const progress = Math.min(100, Math.round((truePoints / tp) * 100));
+
+      // حساب الخانة الخام من النقاط الحقيقية
+      let rawPos = Math.min(bs, 1 + Math.floor(truePoints / pps));
+
+      // تطبيق السلم أو الأفعى إذا وقعت على خانة حدث
+      const ev = events.find(e => e.startPosition === rawPos);
+      let finalPos = rawPos;
+      let mapPoints = truePoints;
+
+      if (ev) {
+        finalPos = ev.endPosition;
+        mapPoints = ev.endPosition === bs ? tp : (ev.endPosition - 1) * pps;
+      }
+
+      // إذا أكمل الطالب الخريطة
+      const hasFinished = truePoints >= tp;
+      if (hasFinished) {
+        finalPos = bs;
+        mapPoints = tp;
+      }
+
+      return {
+        ...player,
+        points: mapPoints,          // نقاط الخريطة (قد تختلف بسبب السلم/الأفعى)
+        position: finalPos,          // الخانة النهائية على الخريطة
+        progressPercentage: progress, // النسبة مبنية على النقاط الحقيقية دائماً
+        hasFinished
+        // لا نُعدّل: rewardPoints, totalCollectedPoints, totalSpent
+      };
+    });
+
+    setLocalItem(KEYS.PLAYERS, JSON.stringify(updated));
+
+    // إعادة حساب الرتب لكل غرفة
+    const rooms = getRooms();
+    rooms.forEach(room => recalculateRanks(room.id));
+
+    window.dispatchEvent(new Event('db_sync'));
+    return { success: true, count: updated.length };
+  } catch(e) {
+    console.error('recalculatePositionsFromTotalPoints error:', e);
     return { success: false, error: e.message };
   }
 };

@@ -179,77 +179,77 @@ export const DEFAULT_CARDS = [
 ];
 
 export const DEFAULT_BOARD_EVENTS = [
-  // سلالم (Ladders)
+  // سلالم (Ladders) - توزيع متوازن: +11 إلى +14 خانة
   {
     id: "event-ladder-1",
     type: "ladder",
-    startPosition: 3,
-    endPosition: 22,
+    startPosition: 6,
+    endPosition: 17,
     description: "المحافظة على صلاة الفجر في جماعة"
   },
   {
     id: "event-ladder-2",
     type: "ladder",
-    startPosition: 12,
-    endPosition: 38,
+    startPosition: 18,
+    endPosition: 30,
     description: "حفظ ورد الحفظ الأسبوعي كاملاً"
   },
   {
     id: "event-ladder-3",
     type: "ladder",
-    startPosition: 28,
-    endPosition: 56,
+    startPosition: 38,
+    endPosition: 51,
     description: "بر الوالدين ومساعدتهم في المنزل"
   },
   {
     id: "event-ladder-4",
     type: "ladder",
-    startPosition: 47,
-    endPosition: 75,
+    startPosition: 59,
+    endPosition: 73,
     description: "التصدق والمشاركة في عمل تطوعي"
   },
   {
     id: "event-ladder-5",
     type: "ladder",
-    startPosition: 70,
-    endPosition: 92,
+    startPosition: 77,
+    endPosition: 91,
     description: "التفوق الدراسي ونشر الخير بين الزملاء"
   },
 
-  // أفاعي (Snakes)
+  // أفاعي (Snakes) - توزيع متوازن: -11 إلى -14 خانة
   {
     id: "event-snake-1",
     type: "snake",
-    startPosition: 25,
-    endPosition: 7,
+    startPosition: 26,
+    endPosition: 15,
     description: "التفوه بكلمات سيئة أو الغيبة"
   },
   {
     id: "event-snake-2",
     type: "snake",
-    startPosition: 44,
-    endPosition: 19,
+    startPosition: 45,
+    endPosition: 33,
     description: "إهمال الواجبات المدرسية والتكاسل"
   },
   {
     id: "event-snake-3",
     type: "snake",
-    startPosition: 62,
-    endPosition: 35,
+    startPosition: 54,
+    endPosition: 42,
     description: "عقوق الوالدين أو إساءة الأدب"
   },
   {
     id: "event-snake-4",
     type: "snake",
-    startPosition: 86,
-    endPosition: 53,
+    startPosition: 68,
+    endPosition: 57,
     description: "التخلف عن صلاة الجماعة لعدة أيام"
   },
   {
     id: "event-snake-5",
     type: "snake",
-    startPosition: 97,
-    endPosition: 73,
+    startPosition: 88,
+    endPosition: 74,
     description: "الكبر والغرور واحتقار الآخرين"
   }
 ];
