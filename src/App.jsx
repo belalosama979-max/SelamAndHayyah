@@ -42,18 +42,25 @@ export default function App() {
   useEffect(() => {
     initDatabase();
     startFirebaseSync();
-    // الترحيل التلقائي لمرة واحدة فقط إذا كان على اللوكال هوست
+    setRooms(getRooms());
+    setCards(getCards());
+    setBoardEvents(getBoardEvents());
+
+    // إعادة تحميل البيانات بعد ثانية ونصف لضمان وصول بيانات Firebase
+    const syncTimer = setTimeout(() => {
+      setRooms(getRooms());
+      setCards(getCards());
+      setBoardEvents(getBoardEvents());
+    }, 1500);
+
+    // الترحيل التلقائي على اللوكال هوست فقط
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
       setTimeout(() => {
         if (!localStorage.getItem('cloud_migrated')) {
-          console.log('Auto-migrating data to Firebase...');
           migrateDataToFirebase(true);
         }
       }, 3000);
     }
-    setRooms(getRooms());
-    setCards(getCards());
-    setBoardEvents(getBoardEvents());
 
     // فحص رابط ولي الأمر
     const params = new URLSearchParams(window.location.search);
@@ -62,6 +69,8 @@ export default function App() {
       setInitialParentCode(pCode);
       navigate('/parent-portal');
     }
+
+    return () => clearTimeout(syncTimer);
   }, []);
 
   // المزامنة مع مسار الرابط (لإعادة تحميل الغرفة عند تحديث الصفحة أو التراجع)
