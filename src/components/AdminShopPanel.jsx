@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getRewards, saveReward, deleteReward, getAllPrizeRequests, updatePrizeRequestStatus, deletePrizeRequest, getRooms } from '../db/database';
+import { getRewards, saveReward, deleteReward, getAllPrizeRequests, updatePrizeRequestStatus, deletePrizeRequest, getRooms, getAllPlayers } from '../db/database';
 
 export default function AdminShopPanel({ onDataChange }) {
   const [activeTab, setActiveTab] = useState('manageRewards'); // 'manageRewards' | 'requests'
@@ -20,11 +20,14 @@ export default function AdminShopPanel({ onDataChange }) {
   // Requests State
   const [requests, setRequests] = useState([]);
   const [rooms, setRooms] = useState([]);
+  const [allPlayers, setAllPlayers] = useState([]);
+  const [requestFilter, setRequestFilter] = useState('all'); // 'all' | 'pending' | 'approved' | 'delivered' | 'rejected'
 
   const loadData = () => {
     setRewards(getRewards());
     setRequests(getAllPrizeRequests().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
     setRooms(getRooms());
+    setAllPlayers(getAllPlayers());
   };
 
   useEffect(() => {
@@ -225,66 +228,108 @@ export default function AdminShopPanel({ onDataChange }) {
       )}
 
       {activeTab === 'requests' && (
-        <div style={{ overflowX: 'auto' }}>
+        <div>
+          {/* فلتر الحالة */}
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ color: 'var(--text-secondary)', fontWeight: 700, fontSize: '0.9rem' }}>فلترة:</span>
+            {[
+              { key: 'all', label: `الكل (${requests.length})` },
+              { key: 'pending', label: `⏳ معلق (${requests.filter(r => r.status === 'pending').length})` },
+              { key: 'approved', label: `✅ مقبول (${requests.filter(r => r.status === 'approved').length})` },
+              { key: 'delivered', label: `📦 مُسلَّم (${requests.filter(r => r.status === 'delivered').length})` },
+              { key: 'rejected', label: `❌ مرفوض (${requests.filter(r => r.status === 'rejected').length})` },
+            ].map(f => (
+              <button
+                key={f.key}
+                onClick={() => setRequestFilter(f.key)}
+                className={`btn ${requestFilter === f.key ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ padding: '0.3rem 0.75rem', fontSize: '0.82rem' }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
                 <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>تاريخ الطلب</th>
                 <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>الطالب (الغرفة)</th>
-                <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>الجائزة (صورة تاريخية)</th>
-                <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>النقاط</th>
+                <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>الجائزة</th>
+                <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>النقاط المستخدمة</th>
+                <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>رصيد الطالب الحالي</th>
                 <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>الحالة</th>
                 <th style={{ padding: '1rem', color: 'var(--text-muted)' }}>إجراءات</th>
               </tr>
             </thead>
             <tbody>
-              {requests.map(req => {
+              {requests
+                .filter(req => requestFilter === 'all' || req.status === requestFilter)
+                .map(req => {
                 const roomName = rooms.find(r => r.id === req.roomId)?.name || 'غرفة محذوفة';
                 const prizeName = req.rewardSnapshot ? req.rewardSnapshot.name : 'جائزة غير معروفة';
                 const dateStr = new Date(req.createdAt).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' });
+                const playerData = allPlayers.find(p => p.id === req.playerId);
+                const currentBalance = playerData ? playerData.rewardPoints : null;
                 
                 return (
-                  <tr key={req.id} style={{ borderBottom: '1px solid var(--border-light)', backgroundColor: req.status === 'pending' ? 'rgba(245, 158, 11, 0.05)' : 'transparent' }}>
-                    <td style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{dateStr}</td>
+                  <tr key={req.id} style={{ borderBottom: '1px solid var(--border-light)', backgroundColor: req.status === 'pending' ? 'rgba(245, 158, 11, 0.06)' : 'transparent' }}>
+                    <td style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{dateStr}</td>
                     <td style={{ padding: '1rem' }}>
                       <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{req.playerName}</div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{roomName}</div>
                     </td>
                     <td style={{ padding: '1rem', fontWeight: 800 }}>{prizeName}</td>
                     <td style={{ padding: '1rem', color: '#f59e0b', fontWeight: 800 }}>{req.pointsUsed} ن</td>
+                    <td style={{ padding: '1rem' }}>
+                      {currentBalance !== null ? (
+                        <span style={{
+                          fontWeight: 800,
+                          color: currentBalance >= 0 ? '#34d399' : '#ef4444',
+                          backgroundColor: 'rgba(16,185,129,0.1)',
+                          padding: '0.2rem 0.6rem',
+                          borderRadius: '8px'
+                        }}>
+                          {currentBalance} ن
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>غير موجود</span>
+                      )}
+                    </td>
                     <td style={{ padding: '1rem' }}>{getStatusLabel(req.status)}</td>
                     <td style={{ padding: '1rem' }}>
                       {req.status === 'pending' && (
                         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                          <button onClick={() => handleRequestAction(req.id, 'approved')} className="btn btn-primary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}>موافقة</button>
-                          <button onClick={() => handleRequestAction(req.id, 'rejected')} className="btn btn-danger" style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}>رفض (إرجاع)</button>
+                          <button onClick={() => handleRequestAction(req.id, 'approved')} className="btn btn-primary" style={{ padding: '0.25rem 0.6rem', fontSize: '0.82rem' }}>✅ موافقة</button>
+                          <button onClick={() => handleRequestAction(req.id, 'rejected')} className="btn btn-danger" style={{ padding: '0.25rem 0.6rem', fontSize: '0.82rem' }}>❌ رفض وإرجاع</button>
                         </div>
                       )}
                       {req.status === 'approved' && (
                         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                          <button onClick={() => handleRequestAction(req.id, 'delivered')} className="btn btn-gold" style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}>تحديد كمسلّمة 📦</button>
-                          <button onClick={() => handleRequestAction(req.id, 'rejected')} className="btn btn-danger" style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}>رفض وإرجاع ↩️</button>
+                          <button onClick={() => handleRequestAction(req.id, 'delivered')} className="btn btn-gold" style={{ padding: '0.25rem 0.6rem', fontSize: '0.82rem' }}>📦 تسليم</button>
+                          <button onClick={() => handleRequestAction(req.id, 'rejected')} className="btn btn-danger" style={{ padding: '0.25rem 0.6rem', fontSize: '0.82rem' }}>↩️ إرجاع</button>
                         </div>
                       )}
                       {(req.status === 'delivered' || req.status === 'rejected') && (
                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                           {req.status === 'delivered' && (
-                            <button onClick={() => handleRequestAction(req.id, 'rejected')} className="btn btn-danger" style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}>إرجاع النقاط ↩️</button>
+                            <button onClick={() => handleRequestAction(req.id, 'rejected')} className="btn btn-danger" style={{ padding: '0.25rem 0.6rem', fontSize: '0.82rem' }}>↩️ إرجاع النقاط</button>
                           )}
-                          <button onClick={() => handleDeleteRequest(req.id)} className="btn btn-secondary" style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem', color: 'var(--danger)' }}>حذف 🗑️</button>
+                          <button onClick={() => handleDeleteRequest(req.id)} className="btn btn-secondary" style={{ padding: '0.25rem 0.6rem', fontSize: '0.82rem', color: 'var(--danger)' }}>🗑️ حذف</button>
                         </div>
                       )}
                     </td>
                   </tr>
                 );
               })}
-              {requests.length === 0 && (
+              {requests.filter(req => requestFilter === 'all' || req.status === requestFilter).length === 0 && (
                 <tr>
-                  <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>لا توجد طلبات حتى الآن.</td>
+                  <td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>لا توجد طلبات في هذا التصنيف.</td>
                 </tr>
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

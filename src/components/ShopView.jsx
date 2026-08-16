@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getRooms, getPlayers, getRewards, orderPrize } from '../db/database';
+import { getRooms, getPlayers, getRewards, orderPrize, getAllPrizeRequests } from '../db/database';
 import { isFlashSaleActive, getEffectivePointsCost, isItemOnSale, getDiscountedPoints } from '../utils/flashSale';
 import FlashSaleBanner from './FlashSaleBanner';
 
@@ -10,6 +10,7 @@ export default function ShopView({ onBack }) {
   const [selectedPlayerId, setSelectedPlayerId] = useState('');
   const [rewards, setRewards] = useState([]);
   const [saleActive, setSaleActive] = useState(false);
+  const [playerRequests, setPlayerRequests] = useState([]);
 
   const loadData = () => {
     setRooms(getRooms());
@@ -18,6 +19,20 @@ export default function ShopView({ onBack }) {
     if (selectedRoomId) {
       setPlayers(getPlayers(selectedRoomId));
     }
+    if (selectedPlayerId) {
+      loadPlayerRequests(selectedPlayerId);
+    }
+  };
+
+  // تحديث طلبات الطالب المحدد عند تغيير الطالب
+  const loadPlayerRequests = (playerId) => {
+    if (!playerId) { setPlayerRequests([]); return; }
+    const all = getAllPrizeRequests();
+    setPlayerRequests(
+      all
+        .filter(r => r.playerId === playerId)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    );
   };
 
   useEffect(() => {
@@ -29,16 +44,22 @@ export default function ShopView({ onBack }) {
       window.removeEventListener('db_sync', loadData);
       clearInterval(saleInterval);
     };
-  }, [selectedRoomId]);
+  }, [selectedRoomId, selectedPlayerId]);
 
   useEffect(() => {
     if (selectedRoomId) {
       setPlayers(getPlayers(selectedRoomId));
       setSelectedPlayerId('');
+      setPlayerRequests([]);
     } else {
       setPlayers([]);
+      setPlayerRequests([]);
     }
   }, [selectedRoomId]);
+
+  useEffect(() => {
+    loadPlayerRequests(selectedPlayerId);
+  }, [selectedPlayerId]);
 
   const [dynamicValues, setDynamicValues] = useState({});
 
@@ -71,11 +92,12 @@ export default function ShopView({ onBack }) {
     if (window.confirm(confirmMsg)) {
       const result = orderPrize(activePlayer.id, reward.id, customPointsCost);
       if (result.success) {
-        alert('تم طلب الجائزة بنجاح!');
+        alert('تم طلب الجائزة بنجاح! ✅');
         // Refresh data
         setRewards(getRewards());
         setPlayers(getPlayers(selectedRoomId));
         setDynamicValues(prev => ({ ...prev, [reward.id]: '' }));
+        loadPlayerRequests(selectedPlayerId);
       } else {
         alert(result.message);
       }
@@ -354,6 +376,69 @@ export default function ShopView({ onBack }) {
           </div>
         )}
       </div>
+
+      {/* طلبات الطالب السابقة */}
+      {activePlayer && (
+        <div>
+          <h3 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span>📋</span> طلباتي السابقة
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginRight: 'auto' }}>
+              ({activePlayer.name})
+            </span>
+          </h3>
+          {playerRequests.length === 0 ? (
+            <div className="glass-panel" style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)', borderRadius: 'var(--radius-md)' }}>
+              لا توجد طلبات سابقة لهذا الطالب.
+            </div>
+          ) : (
+            <div className="glass-panel" style={{ borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
+                <thead>
+                  <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+                    <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.85rem' }}>التاريخ</th>
+                    <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.85rem' }}>الجائزة</th>
+                    <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.85rem' }}>النقاط</th>
+                    <th style={{ padding: '0.75rem 1rem', color: 'var(--text-muted)', fontWeight: 700, fontSize: '0.85rem' }}>الحالة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {playerRequests.map(req => {
+                    const statusConfig = {
+                      pending:   { label: '⏳ قيد الانتظار',        color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+                      approved:  { label: '✅ مقبول — جاهز للتسليم', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' },
+                      delivered: { label: '📦 تم التسليم',           color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
+                      rejected:  { label: '❌ مرفوض — تم إرجاع النقاط', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
+                    };
+                    const sc = statusConfig[req.status] || { label: req.status, color: 'var(--text-muted)', bg: 'transparent' };
+                    const dateStr = new Date(req.createdAt).toLocaleDateString('ar-EG', { dateStyle: 'short' });
+                    const prizeName = req.rewardSnapshot?.name || 'جائزة غير معروفة';
+                    return (
+                      <tr key={req.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                        <td style={{ padding: '0.85rem 1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{dateStr}</td>
+                        <td style={{ padding: '0.85rem 1rem', fontWeight: 700 }}>{prizeName}</td>
+                        <td style={{ padding: '0.85rem 1rem', color: '#f59e0b', fontWeight: 800 }}>{req.pointsUsed} ن</td>
+                        <td style={{ padding: '0.85rem 1rem' }}>
+                          <span style={{
+                            backgroundColor: sc.bg,
+                            color: sc.color,
+                            padding: '0.2rem 0.65rem',
+                            borderRadius: '20px',
+                            fontSize: '0.82rem',
+                            fontWeight: 700,
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {sc.label}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
