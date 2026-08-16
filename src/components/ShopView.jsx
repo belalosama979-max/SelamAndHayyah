@@ -19,9 +19,6 @@ export default function ShopView({ onBack }) {
     if (selectedRoomId) {
       setPlayers(getPlayers(selectedRoomId));
     }
-    if (selectedPlayerId) {
-      loadPlayerRequests(selectedPlayerId);
-    }
   };
 
   // تحديث طلبات الطالب المحدد عند تغيير الطالب
@@ -44,7 +41,7 @@ export default function ShopView({ onBack }) {
       window.removeEventListener('db_sync', loadData);
       clearInterval(saleInterval);
     };
-  }, [selectedRoomId, selectedPlayerId]);
+  }, [selectedRoomId]);
 
   useEffect(() => {
     if (selectedRoomId) {

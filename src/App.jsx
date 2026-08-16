@@ -5,7 +5,7 @@ import {
   getRooms, saveRoom, archiveRoom, deleteRoom,
   getPlayers, savePlayer,
   getCards, getBoardEvents, getLogs, applyCardToPlayer, undoLastLog, initDatabase,
-  recordPlayerVisit, getGameSettings, startFirebaseSync
+  recordPlayerVisit, getGameSettings
 } from './db/database';
 import RoomSummary from './components/RoomSummary';
 import Board from './components/Board';
@@ -41,7 +41,18 @@ export default function App() {
   // تهيئة قاعدة البيانات عند تشغيل التطبيق لأول مرة وتطبيق المظهر
   useEffect(() => {
     initDatabase();
-    startFirebaseSync();
+    import('./db/database').then(db => {
+      db.startFirebaseSync();
+      // الترحيل التلقائي لمرة واحدة فقط إذا كان على اللوكال هوست
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        setTimeout(() => {
+          if (!localStorage.getItem('cloud_migrated')) {
+            console.log("Auto-migrating data to Firebase...");
+            db.migrateDataToFirebase(true);
+          }
+        }, 3000);
+      }
+    });
     setRooms(getRooms());
     setCards(getCards());
     setBoardEvents(getBoardEvents());

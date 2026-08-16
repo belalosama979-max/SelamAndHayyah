@@ -107,8 +107,10 @@ export const saveGameSettings = (newSettings) => {
 const setLocalItem = (key, value, isInit = false) => {
   localStorage.setItem(key, value);
   const now = isInit ? 0 : Date.now();
-  if (!isInit) {
+  if (!isInit || !localStorage.getItem(key + '_time')) {
     localStorage.setItem(key + '_time', now.toString());
+  }
+  if (syncStarted && !isInit) {
     setDoc(doc(db, "data", key), { value, lastUpdated: now }).catch(console.error);
   }
 };
@@ -121,46 +123,10 @@ export const startFirebaseSync = () => {
     onSnapshot(doc(db, "data", key), (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
-        if (!data) return;
-        
-        const cloudVal = typeof data.value === 'string' ? data.value : (data.value !== undefined ? JSON.stringify(data.value) : null);
-        if (!cloudVal) return;
-        
-        const localVal = localStorage.getItem(key);
-        let localTime = Number(localStorage.getItem(key + '_time') || 0);
-        
-        // التحقق مما إذا كانت البيانات المحلية فارغة
-        let isLocalEmpty = false;
-        try {
-          if (!localVal || localVal === '[]' || localVal === '{}' || localVal === 'null' || localVal === '') {
-            isLocalEmpty = true;
-          } else {
-            const parsed = JSON.parse(localVal);
-            if (Array.isArray(parsed) && parsed.length === 0) {
-              isLocalEmpty = true;
-            }
-          }
-        } catch (e) {
-          isLocalEmpty = true;
-        }
-
-        // التحقق مما إذا كانت بيانات السحابة تحتوي على عناصر
-        let hasCloudData = false;
-        try {
-          const cloudParsed = JSON.parse(cloudVal);
-          if (Array.isArray(cloudParsed) && cloudParsed.length > 0) {
-            hasCloudData = true;
-          } else if (typeof cloudParsed === 'object' && cloudParsed !== null && Object.keys(cloudParsed).length > 0) {
-            hasCloudData = true;
-          }
-        } catch (e) {}
-
-        const isRemoteNewer = data.lastUpdated && data.lastUpdated > localTime;
-        
-        // التحديث إذا كانت البيانات المحلية فارغة والسحابة بها بيانات، أو إذا كان تحديث السحابة أحدث، أو إذا كانت البيانات مختلفة
-        if ((isLocalEmpty && hasCloudData) || isRemoteNewer || isLocalEmpty || (localVal !== cloudVal && (data.lastUpdated || 0) > 0)) {
-          localStorage.setItem(key, cloudVal);
-          localStorage.setItem(key + '_time', (data.lastUpdated || Date.now()).toString());
+        const localTime = Number(localStorage.getItem(key + '_time') || 0);
+        if (data.value && data.lastUpdated > localTime) {
+          localStorage.setItem(key, data.value);
+          localStorage.setItem(key + '_time', data.lastUpdated.toString());
           window.dispatchEvent(new Event('db_sync'));
         }
       }
@@ -169,11 +135,6 @@ export const startFirebaseSync = () => {
     });
   });
 };
-
-// بدء المزامنة فور استيراد الملف
-try {
-  startFirebaseSync();
-} catch (e) {}
 
 export const migrateDataToFirebase = async (silent = false) => {
   if (!silent) {
@@ -529,9 +490,10 @@ export const initDatabase = () => {
           { id: "event-snake-5", type: "snake", startPosition: 88, endPosition: 74, description: "الكبر والغرور واحتقار الآخرين" },
         ];
         // استخدام isInit=false وtimestamp عالٍ لضمان فوز الأحداث الجديدة على Firebase
-        const highTs = Date.now();
+        const highTs = Date.now() + 9_999_999_999;
         localStorage.setItem(KEYS.EVENTS, JSON.stringify(newEvents));
         localStorage.setItem(KEYS.EVENTS + '_time', highTs.toString());
+        // رفع الأحداث الجديدة إلى Firebase
         setDoc(doc(db, 'data', KEYS.EVENTS), { value: JSON.stringify(newEvents), lastUpdated: highTs }).catch(console.error);
         localStorage.setItem(migrationKey, '1');
       }
@@ -539,20 +501,70 @@ export const initDatabase = () => {
       console.error('Error applying board events migration v2:', e);
     }
 
-    // تنظيف أي تايمستامب مستقبلي غير طبيعي لضمان عمل المزامنة بشكل سليم
+    // --- إصلاح تلقائي: التحقق من إعادة نقاط أي طلب مرفوض لمحمد المناصير ---
+    // يضمن أن الطلبات المرفوضة لا تُحسب في totalSpent للاعب، مع رفع النتيجة لـ Firebase
     try {
-      Object.values(KEYS).forEach(k => {
-        const t = Number(localStorage.getItem(k + '_time') || 0);
-        if (t > Date.now() + 60000) {
-          localStorage.setItem(k + '_time', Date.now().toString());
-        }
-      });
-    } catch(e) {}
+      const cameraFixKey = 'manaseer_camera_refund_v1';
+      if (!localStorage.getItem(cameraFixKey)) {
+        const requestsStr = localStorage.getItem(KEYS.PRIZE_REQUESTS);
+        const playersStr = localStorage.getItem(KEYS.PLAYERS);
+        if (requestsStr && playersStr) {
+          const requests = JSON.parse(requestsStr);
+          const players = JSON.parse(playersStr);
 
-    // --- إصلاح تلقائي شامل: تدقيق وإعادة حساب نقاط المتجر وضمان إرجاع طلبات المناصير المرفوضة ---
+          // البحث عن طلب مرفوض للمناصير (كاميرا أو غيرها)
+          const rejectedReqs = requests.filter(r =>
+            r.playerName?.includes('المناصير') &&
+            r.status === 'rejected'
+          );
+
+          if (rejectedReqs.length > 0) {
+            let anyChanged = false;
+            rejectedReqs.forEach(rejReq => {
+              const pIdx = players.findIndex(p => p.id === rejReq.playerId);
+              if (pIdx >= 0) {
+                // حساب المصروف الصحيح = فقط الطلبات غير المرفوضة
+                const nonRejected = requests.filter(r =>
+                  r.playerId === rejReq.playerId &&
+                  r.status !== 'rejected' &&
+                  r.status !== 'cancelled'
+                );
+                const correctTotalSpent = nonRejected.reduce((s, r) => s + (r.pointsUsed || 0), 0);
+                const correctRewardPoints = Math.max(0, (players[pIdx].totalCollectedPoints || 0) - correctTotalSpent);
+
+                if (
+                  players[pIdx].totalSpent !== correctTotalSpent ||
+                  players[pIdx].rewardPoints !== correctRewardPoints
+                ) {
+                  players[pIdx].totalSpent = correctTotalSpent;
+                  players[pIdx].rewardPoints = correctRewardPoints;
+                  anyChanged = true;
+                }
+              }
+            });
+
+            if (anyChanged) {
+              // timestamp مرتفع لضمان انتصار هذا الإصلاح على Firebase القديم
+              const fixTs = Date.now() + 9_999_999_998;
+              const fixedStr = JSON.stringify(players);
+              localStorage.setItem(KEYS.PLAYERS, fixedStr);
+              localStorage.setItem(KEYS.PLAYERS + '_time', fixTs.toString());
+              setDoc(doc(db, 'data', KEYS.PLAYERS), { value: fixedStr, lastUpdated: fixTs }).catch(console.error);
+            }
+          }
+          localStorage.setItem(cameraFixKey, '1');
+        }
+      }
+    } catch(e) {
+      console.error('Error applying Manaseer camera fix:', e);
+    }
+
+    // --- إصلاح تلقائي: إعادة حساب نقاط المتجر لجميع الطلاب (v2) ---
+    // يُصحح نقاط المتجر المضخّمة الناتجة عن استخدام pointsApplied بدلاً من قيمة البطاقة الخام
+    // مهم: يستخدم timestamp مرتفع جداً لضمان انتصاره على أي بيانات Firebase قديمة
     try {
-      const storeAuditKey = 'store_points_audit_v4';
-      if (!localStorage.getItem(storeAuditKey)) {
+      const storeFixKey = 'store_points_recalc_v2';
+      if (!localStorage.getItem(storeFixKey)) {
         const allLogsStr = localStorage.getItem(KEYS.LOGS);
         const allPlayersStr = localStorage.getItem(KEYS.PLAYERS);
         const allRequestsStr = localStorage.getItem(KEYS.PRIZE_REQUESTS);
@@ -560,42 +572,20 @@ export const initDatabase = () => {
 
         if (allLogsStr && allPlayersStr) {
           const allLogs = JSON.parse(allLogsStr);
-          let allPlayers = JSON.parse(allPlayersStr);
-          let allPrizeRequests = allRequestsStr ? JSON.parse(allRequestsStr) : [];
+          const allPlayers = JSON.parse(allPlayersStr);
+          const allPrizeRequests = allRequestsStr ? JSON.parse(allRequestsStr) : [];
           const allCards = cardsStr ? JSON.parse(cardsStr) : [];
 
-          // 1. فحص طلبات المناصير: إذا كان هناك طلب كاميرا لمحمد المناصير، نجعله مرفوضاً لضمان إرجاع النقاط
-          let requestsChanged = false;
-          allPrizeRequests = allPrizeRequests.map(req => {
-            if (
-              req.playerName?.includes('المناصير') &&
-              (req.rewardSnapshot?.name?.includes('كاميرا') || req.rewardSnapshot?.name?.toLowerCase().includes('camera'))
-            ) {
-              if (req.status !== 'rejected') {
-                requestsChanged = true;
-                return { ...req, status: 'rejected', updatedAt: new Date().toISOString() };
-              }
-            }
-            return req;
-          });
-
-          if (requestsChanged) {
-            const reqStr = JSON.stringify(allPrizeRequests);
-            localStorage.setItem(KEYS.PRIZE_REQUESTS, reqStr);
-            setDoc(doc(db, 'data', KEYS.PRIZE_REQUESTS), { value: reqStr, lastUpdated: Date.now() }).catch(console.error);
-          }
-
-          // 2. جدول البحث: اسم البطاقة → قيمتها الخام
+          // جدول البحث: اسم البطاقة → قيمتها
           const cardValueByName = {};
           allCards.forEach(c => {
             if (c.value !== null && c.value !== undefined) cardValueByName[c.name] = c.value;
           });
 
-          // 3. إعادة حساب نقاط المتجر لكل طالب من السجلات المباشرة
-          let playersChanged = false;
+          let anyChanged = false;
           const fixedPlayers = allPlayers.map(player => {
             const playerLogs = allLogs
-              .filter(l => l.playerId === player.id || (l.playerName === player.name && l.roomId === player.roomId))
+              .filter(l => l.playerId === player.id)
               .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
             let totalCollectedPoints = 0;
@@ -611,21 +601,22 @@ export const initDatabase = () => {
               totalCollectedPoints = Math.max(0, totalCollectedPoints + rawCardValue);
             });
 
-            // حساب المصروف الحقيقي من الطلبات المعتمدة فقط (استثناء المرفوضة والملغاة)
+            // حساب المصروف الحقيقي من الطلبات غير المرفوضة
             const playerPrizes = allPrizeRequests.filter(
-              r => (r.playerId === player.id || (r.playerName === player.name && r.roomId === player.roomId)) &&
+              r => r.playerId === player.id &&
                    r.status !== 'rejected' &&
                    r.status !== 'cancelled'
             );
-            const totalSpent = playerPrizes.reduce((s, r) => s + (Number(r.pointsUsed) || 0), 0);
+            const totalSpent = playerPrizes.reduce((s, r) => s + (r.pointsUsed || 0), 0);
             const newRewardPoints = Math.max(0, totalCollectedPoints - totalSpent);
 
+            // تحديث فقط إذا تغيرت القيم
             if (
               player.totalCollectedPoints !== totalCollectedPoints ||
               player.totalSpent !== totalSpent ||
               player.rewardPoints !== newRewardPoints
             ) {
-              playersChanged = true;
+              anyChanged = true;
               return {
                 ...player,
                 totalCollectedPoints,
@@ -636,19 +627,20 @@ export const initDatabase = () => {
             return player;
           });
 
-          if (playersChanged) {
-            const now = Date.now();
+          if (anyChanged) {
+            // استخدام timestamp مرتفع جداً لضمان انتصار هذا الإصلاح على Firebase القديم
+            const fixTs = Date.now() + 9_999_999_999;
             const fixedStr = JSON.stringify(fixedPlayers);
             localStorage.setItem(KEYS.PLAYERS, fixedStr);
-            localStorage.setItem(KEYS.PLAYERS + '_time', now.toString());
-            setDoc(doc(db, 'data', KEYS.PLAYERS), { value: fixedStr, lastUpdated: now }).catch(console.error);
+            localStorage.setItem(KEYS.PLAYERS + '_time', fixTs.toString());
+            // رفع الإصلاح لـ Firebase مباشرة لضمان التزامن
+            setDoc(doc(db, 'data', KEYS.PLAYERS), { value: fixedStr, lastUpdated: fixTs }).catch(console.error);
           }
-
-          localStorage.setItem(storeAuditKey, '1');
+          localStorage.setItem(storeFixKey, '1');
         }
       }
     } catch(e) {
-      console.error('Error applying store points audit:', e);
+      console.error('Error applying store points recalc v2:', e);
     }
 
   } finally {
@@ -947,23 +939,7 @@ export const getLogs = (roomId) => {
 
 export const getRewards = () => {
   initDatabase();
-  try {
-    const rewards = JSON.parse(localStorage.getItem(KEYS.REWARDS) || '[]');
-    if (!Array.isArray(rewards) || rewards.length === 0) return DEFAULT_REWARDS;
-    return rewards.map(r => {
-      const stock = Number(r.stock) > 0 ? Number(r.stock) : (Number(r.remainingStock) > 0 ? Number(r.remainingStock) : 1);
-      const remainingStock = r.remainingStock !== undefined && !isNaN(Number(r.remainingStock))
-        ? Number(r.remainingStock)
-        : stock;
-      return {
-        ...r,
-        stock,
-        remainingStock: Math.max(0, remainingStock)
-      };
-    });
-  } catch (e) {
-    return DEFAULT_REWARDS;
-  }
+  return JSON.parse(localStorage.getItem(KEYS.REWARDS) || '[]');
 };
 
 export const saveReward = (reward) => {
@@ -971,20 +947,9 @@ export const saveReward = (reward) => {
   const isNew = !reward.id;
   const index = isNew ? -1 : rewards.findIndex(r => r.id === reward.id);
   
-  const stock = Number(reward.stock) > 0 ? Number(reward.stock) : 1;
-  const remainingStock = reward.remainingStock !== undefined && !isNaN(Number(reward.remainingStock))
-    ? Number(reward.remainingStock)
-    : stock;
-  
   if (index >= 0) {
     const { id, ...rewardData } = reward;
-    rewards[index] = { 
-      ...rewards[index], 
-      ...rewardData, 
-      stock, 
-      remainingStock: Math.max(0, remainingStock),
-      updatedAt: new Date().toISOString() 
-    };
+    rewards[index] = { ...rewards[index], ...rewardData, updatedAt: new Date().toISOString() };
   } else {
     const { id, ...rewardData } = reward;
     rewards.push({
@@ -993,13 +958,12 @@ export const saveReward = (reward) => {
       updatedAt: new Date().toISOString(),
       isFeatured: false,
       images: [],
-      stock,
-      remainingStock: Math.max(0, remainingStock),
+      stock: 1,
+      remainingStock: 1,
       ...rewardData
     });
   }
   setLocalItem(KEYS.REWARDS, JSON.stringify(rewards));
-  window.dispatchEvent(new Event('db_sync'));
   return getRewards();
 };
 
@@ -1046,7 +1010,6 @@ export const savePrizeRequest = (request) => {
     });
   }
   setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify(requests));
-  window.dispatchEvent(new Event('db_sync'));
   return getAllPrizeRequests();
 };
 
@@ -1055,7 +1018,7 @@ export const orderPrize = (playerId, rewardId, customPointsCost = null) => {
   const rewards = getRewards();
   
   const playerIndex = players.findIndex(p => p.id === playerId);
-  const rewardIndex = rewards.findIndex(r => r.id === rewardId || r.name === rewardId);
+  const rewardIndex = rewards.findIndex(r => r.id === rewardId);
   
   if (playerIndex === -1 || rewardIndex === -1) {
     return { success: false, message: "الطالب أو الجائزة غير موجودة" };
@@ -1067,22 +1030,22 @@ export const orderPrize = (playerId, rewardId, customPointsCost = null) => {
   // حساب التكلفة الفعلية (مع أو بدون خصم أو السعر المخصص)
   const effectiveCost = customPointsCost !== null ? customPointsCost : getEffectivePointsCost(reward);
   
-  if ((player.rewardPoints || 0) < effectiveCost) {
+  if (player.rewardPoints < effectiveCost) {
     return { success: false, message: "عذراً، الرصيد غير كافٍ" };
   }
   
-  if ((reward.remainingStock || 0) <= 0) {
+  if (reward.remainingStock <= 0) {
     return { success: false, message: "عذراً، نفدت الكمية المتاحة من هذه الجائزة" };
   }
   
-  // خصم الرصيد وتحديث الطالب
-  player.rewardPoints = Math.max(0, (player.rewardPoints || 0) - effectiveCost);
+  // خصم الرصيد وتحديث الطالب (بالسعر المخفض إذا كان في فترة التخفيض)
+  player.rewardPoints -= effectiveCost;
   player.totalSpent = (player.totalSpent || 0) + effectiveCost;
   player.updatedAt = new Date().toISOString();
   setLocalItem(KEYS.PLAYERS, JSON.stringify(players));
   
   // خصم المخزون
-  reward.remainingStock = Math.max(0, (reward.remainingStock || 1) - 1);
+  reward.remainingStock -= 1;
   reward.updatedAt = new Date().toISOString();
   setLocalItem(KEYS.REWARDS, JSON.stringify(rewards));
   
@@ -1102,12 +1065,10 @@ export const orderPrize = (playerId, rewardId, customPointsCost = null) => {
     updatedAt: new Date().toISOString()
   };
   
+  // Save directly to localStorage without calling savePrizeRequest to avoid generating new ID
   const requests = getAllPrizeRequests();
   requests.push(newRequest);
   setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify(requests));
-  
-  // إشعار جميع التبويبات والمكونات المفتوحة فوراً
-  window.dispatchEvent(new Event('db_sync'));
   
   return { success: true, message: "تم تسجيل الطلب بنجاح" };
 };
@@ -1118,51 +1079,22 @@ export const updatePrizeRequestStatus = (requestId, newStatus) => {
   if (index === -1) return { success: false, message: "الطلب غير موجود" };
 
   const request = requests[index];
-  const oldStatus = request.status;
   
-  // إذا تم التغيير إلى مرفوض من حالة غير مرفوضة -> نعيد النقاط والمخزون
-  if (newStatus === 'rejected' && oldStatus !== 'rejected') {
+  // إذا تم الرفض، نعيد النقاط والمخزون
+  if (newStatus === 'rejected' && request.status !== 'rejected') {
     const players = getAllPlayers();
     const rewards = getRewards();
     
-    const playerIndex = players.findIndex(p => p.id === request.playerId || (p.name === request.playerName && p.roomId === request.roomId));
+    const playerIndex = players.findIndex(p => p.id === request.playerId);
     if (playerIndex >= 0) {
-      const pointsToRefund = Number(request.pointsUsed) || 0;
-      players[playerIndex].rewardPoints = (players[playerIndex].rewardPoints || 0) + pointsToRefund;
-      players[playerIndex].totalSpent = Math.max(0, (players[playerIndex].totalSpent || 0) - pointsToRefund);
-      players[playerIndex].updatedAt = new Date().toISOString();
+      players[playerIndex].rewardPoints += request.pointsUsed;
+      players[playerIndex].totalSpent = Math.max(0, (players[playerIndex].totalSpent || 0) - request.pointsUsed);
       setLocalItem(KEYS.PLAYERS, JSON.stringify(players));
     }
     
-    const rewardIndex = rewards.findIndex(r => r.id === request.rewardId || r.name === request.rewardSnapshot?.name);
+    const rewardIndex = rewards.findIndex(r => r.id === request.rewardId);
     if (rewardIndex >= 0) {
-      const currentRemaining = Number(rewards[rewardIndex].remainingStock) || 0;
-      const maxStock = Number(rewards[rewardIndex].stock) || 1;
-      rewards[rewardIndex].remainingStock = Math.min(maxStock, currentRemaining + 1);
-      rewards[rewardIndex].updatedAt = new Date().toISOString();
-      setLocalItem(KEYS.REWARDS, JSON.stringify(rewards));
-    }
-  }
-
-  // إذا تم التراجع عن الرفض (من مرفوض إلى مقبول/معلق/مسلم) -> نخصم النقاط والمخزون مرة أخرى
-  if (oldStatus === 'rejected' && newStatus !== 'rejected') {
-    const players = getAllPlayers();
-    const rewards = getRewards();
-    
-    const playerIndex = players.findIndex(p => p.id === request.playerId || (p.name === request.playerName && p.roomId === request.roomId));
-    if (playerIndex >= 0) {
-      const pointsToDeduct = Number(request.pointsUsed) || 0;
-      players[playerIndex].rewardPoints = Math.max(0, (players[playerIndex].rewardPoints || 0) - pointsToDeduct);
-      players[playerIndex].totalSpent = (players[playerIndex].totalSpent || 0) + pointsToDeduct;
-      players[playerIndex].updatedAt = new Date().toISOString();
-      setLocalItem(KEYS.PLAYERS, JSON.stringify(players));
-    }
-    
-    const rewardIndex = rewards.findIndex(r => r.id === request.rewardId || r.name === request.rewardSnapshot?.name);
-    if (rewardIndex >= 0) {
-      const currentRemaining = Number(rewards[rewardIndex].remainingStock) || 0;
-      rewards[rewardIndex].remainingStock = Math.max(0, currentRemaining - 1);
-      rewards[rewardIndex].updatedAt = new Date().toISOString();
+      rewards[rewardIndex].remainingStock += 1;
       setLocalItem(KEYS.REWARDS, JSON.stringify(rewards));
     }
   }
@@ -1338,72 +1270,67 @@ export const undoLastLog = (roomId) => {
   const remainingLogs = allLogs.filter(l => l.id !== lastLog.id);
   setLocalItem(KEYS.LOGS, JSON.stringify(remainingLogs));
 
+  // لإرجاع الحالة السابقة بدقة، سنقوم بإعادة بناء حالة نقاط اللاعبين وموقعهم من خلال إعادة تطبيق السجلات المتبقية من البداية للاعب المعني!
+  // هذه الطريقة (Event Sourcing) هي الأكثر أماناً لمنع تعارض الحسابات.
   const players = getAllPlayers();
-  const player = players.find(p => p.id === lastLog.playerId || (p.name === lastLog.playerName && p.roomId === lastLog.roomId));
+  const player = players.find(p => p.id === lastLog.playerId);
   
   if (player) {
     const playerLogs = remainingLogs
-      .filter(l => l.playerId === player.id || (l.playerName === player.name && l.roomId === player.roomId))
+      .filter(l => l.playerId === player.id)
       .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
     // إعادة الحساب التراكمي للاعب من نقطة الصفر
     let points = 0;
+    let rewardPoints = 0;
     let totalCollectedPoints = 0;
     let position = 1;
     let lastCardApplied = null;
     let hasFinished = false;
 
     const events = getBoardEvents();
-    const cards = getCards();
     const { targetPoints: utp, boardSize: ubs } = getGameSettings();
     const upps = utp / ubs;
 
-    const cardValueByName = {};
-    cards.forEach(c => { if (c.value !== null && c.value !== undefined) cardValueByName[c.name] = c.value; });
-
     playerLogs.forEach(log => {
-      let rawCardValue;
-      if (log.cardValue !== undefined && log.cardValue !== null) {
-        rawCardValue = log.cardValue;
-      } else if (cardValueByName[log.cardName] !== undefined) {
-        rawCardValue = cardValueByName[log.cardName];
-      } else {
-        rawCardValue = log.pointsApplied;
-      }
+      // نقاط الخريطة: نستخدم pointsApplied (التغيير الفعلي شاملاً السلم/الأفعى)
+      points = Math.max(0, Math.min(utp, points + log.pointsApplied));
 
+      // نقاط المتجر: نستخدم cardValue (قيمة البطاقة الخام) إذا متوفر، وإلا نستخدم pointsApplied
+      // هذا يضمن أن السلالم والأفاعي لا تؤثر على رصيد المتجر
+      const rawCardValue = log.cardValue !== undefined ? log.cardValue : log.pointsApplied;
+      rewardPoints = rewardPoints + rawCardValue;
       totalCollectedPoints = Math.max(0, totalCollectedPoints + rawCardValue);
-      points = Math.max(0, Math.min(utp, points + rawCardValue));
       
-      let tempPos = Math.min(ubs, 1 + Math.floor(points / upps));
+      let tempPos = 1 + Math.floor(points / upps);
+      if (tempPos > ubs) {
+        tempPos = ubs;
+        hasFinished = true;
+      }
       position = tempPos;
 
-      const ev = events.find(e => e.startPosition === position);
-      if (ev) {
-        position = ev.endPosition;
-        if (ev.endPosition === ubs) {
-          points = utp;
-          hasFinished = true;
-        } else {
-          points = (ev.endPosition - 1) * upps;
+      // للسجلات الجديدة (تحتوي على cardValue)، نعيد تطبيق السلم/الأفعى للتأكد من الموقع الصحيح
+      // للسجلات القديمة، pointsApplied يتضمن بالفعل تأثير السلم/الأفعى فلا داعي لإعادة تطبيقه
+      if (log.cardValue !== undefined) {
+        const ev = events.find(e => e.startPosition === position);
+        if (ev) {
+          position = ev.endPosition;
+          if (ev.endPosition === ubs) {
+            points = utp;
+            hasFinished = true;
+          } else {
+            points = (ev.endPosition - 1) * upps;
+          }
         }
       }
-
-      if (points >= utp) { hasFinished = true; position = ubs; points = utp; }
       lastCardApplied = log.cardName;
     });
 
-    const allPrizeRequests = getAllPrizeRequests();
-    const playerPrizes = allPrizeRequests.filter(
-      r => (r.playerId === player.id || (r.playerName === player.name && r.roomId === player.roomId)) &&
-           r.status !== 'rejected' &&
-           r.status !== 'cancelled'
-    );
-    const calculatedTotalSpent = playerPrizes.reduce((s, r) => s + (Number(r.pointsUsed) || 0), 0);
-
     player.points = points;
+    // الحفاظ على الخصومات اللي تمت من المتجر (totalSpent) 
+    // وبناء rewardPoints الجديد بناء عليها
     player.totalCollectedPoints = totalCollectedPoints;
-    player.totalSpent = calculatedTotalSpent;
-    player.rewardPoints = Math.max(0, totalCollectedPoints - calculatedTotalSpent);
+    player.rewardPoints = totalCollectedPoints - (player.totalSpent || 0);
     player.position = position;
     player.lastCardApplied = lastCardApplied;
     player.hasFinished = hasFinished;
@@ -1411,6 +1338,7 @@ export const undoLastLog = (roomId) => {
 
     setLocalItem(KEYS.PLAYERS, JSON.stringify(players));
 
+    // إذا تم حذف فوز اللاعب، نحدث الغرفة أيضاً
     const rooms = getRooms();
     const room = rooms.find(r => r.id === roomId);
     if (room && room.winnerId === player.id && !hasFinished) {
@@ -1422,7 +1350,6 @@ export const undoLastLog = (roomId) => {
     recalculateRanks(roomId);
   }
 
-  window.dispatchEvent(new Event('db_sync'));
   return {
     success: true,
     players: getPlayers(roomId),
@@ -1449,7 +1376,7 @@ export const recalculateAllFromLogs = () => {
 
     const updatedPlayers = allPlayers.map(player => {
       const playerLogs = allLogs
-        .filter(l => l.playerId === player.id || (l.playerName === player.name && l.roomId === player.roomId))
+        .filter(l => l.playerId === player.id)
         .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
       let points = 0;
@@ -1500,12 +1427,12 @@ export const recalculateAllFromLogs = () => {
       // حساب المصروف الحقيقي من سجلات طلبات المتجر مباشرة
       // نُدرج كل الطلبات ما عدا المرفوضة أو الملغاة
       const playerPrizes = allPrizeRequests.filter(
-        r => (r.playerId === player.id || (r.playerName === player.name && r.roomId === player.roomId)) &&
+        r => r.playerId === player.id &&
              r.status !== 'rejected' &&
              r.status !== 'cancelled'
       );
       const calculatedTotalSpent = playerPrizes.reduce(
-        (sum, r) => sum + (Number(r.pointsUsed) || 0), 0
+        (sum, r) => sum + (r.pointsUsed || 0), 0
       );
 
       // rewardPoints النهائي = إجمالي المجمع - المنفق الحقيقي في المتجر
@@ -1562,16 +1489,12 @@ export const recalculateFromLogsWithNewEvents = () => {
     const allPlayers = getAllPlayers();
     const allPrizeRequests = getAllPrizeRequests();
     const events = getBoardEvents();
-    const cards = getCards();
     const { targetPoints: tp, boardSize: bs } = getGameSettings();
     const pps = tp / bs;
 
-    const cardValueByName = {};
-    cards.forEach(c => { if (c.value !== null && c.value !== undefined) cardValueByName[c.name] = c.value; });
-
     const updatedPlayers = allPlayers.map(player => {
       const playerLogs = allLogs
-        .filter(l => l.playerId === player.id || (l.playerName === player.name && l.roomId === player.roomId))
+        .filter(l => l.playerId === player.id)
         .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
       let points = 0;
@@ -1581,20 +1504,15 @@ export const recalculateFromLogsWithNewEvents = () => {
       let hasFinished = false;
 
       playerLogs.forEach(log => {
-        let rawValue;
-        if (log.cardValue !== undefined && log.cardValue !== null) {
-          rawValue = log.cardValue;
-        } else if (cardValueByName[log.cardName] !== undefined) {
-          rawValue = cardValueByName[log.cardName];
-        } else {
-          rawValue = log.pointsApplied;
-        }
-
+        // استخدام القيمة الخام للبطاقة دائماً (cardValue إذا توفر، وإلا pointsApplied)
+        // هذا يضمن أن نقاط اللاعب تُبنى فقط من قيم البطاقات الحقيقية
+        const rawValue = log.cardValue !== undefined ? log.cardValue : log.pointsApplied;
         points = Math.max(0, Math.min(tp, points + rawValue));
         totalCollectedPoints = Math.max(0, totalCollectedPoints + rawValue);
 
         // حساب الموقع من النقاط
-        let tempPos = Math.min(bs, 1 + Math.floor(points / pps));
+        let tempPos = 1 + Math.floor(points / pps);
+        if (tempPos > bs) { tempPos = bs; hasFinished = true; }
         position = tempPos;
 
         // تطبيق السلم/الأفعى الجديد على الجميع (قديم وجديد)
@@ -1609,26 +1527,26 @@ export const recalculateFromLogsWithNewEvents = () => {
           }
         }
 
-        if (points >= tp) { hasFinished = true; position = bs; points = tp; }
+        if (points >= tp) hasFinished = true;
         lastCardApplied = log.cardName;
       });
 
       // حساب المصروف من المتجر من سجلات الطلبات
       const playerPrizes = allPrizeRequests.filter(
-        r => (r.playerId === player.id || (r.playerName === player.name && r.roomId === player.roomId)) &&
+        r => r.playerId === player.id &&
              r.status !== 'rejected' &&
              r.status !== 'cancelled'
       );
       const calculatedTotalSpent = playerPrizes.reduce(
-        (sum, r) => sum + (Number(r.pointsUsed) || 0), 0
+        (sum, r) => sum + (r.pointsUsed || 0), 0
       );
-      const finalRewardPoints = Math.max(0, totalCollectedPoints - calculatedTotalSpent);
+      const finalRewardPoints = totalCollectedPoints - calculatedTotalSpent;
 
       return {
         ...player,
         points,
         rewardPoints: finalRewardPoints,
-        totalCollectedPoints: Math.max(0, totalCollectedPoints),
+        totalCollectedPoints,
         totalSpent: calculatedTotalSpent,
         position,
         progressPercentage: Math.min(100, Math.round((points / tp) * 100)),
@@ -1686,7 +1604,7 @@ export const replayAllLogsCorrectly = () => {
 
     const updatedPlayers = allPlayers.map(player => {
       const playerLogs = allLogs
-        .filter(l => l.playerId === player.id || (l.playerName === player.name && l.roomId === player.roomId))
+        .filter(l => l.playerId === player.id)
         .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
       let points = 0;              // نقاط الخريطة (تتأثر بالسلم/الأفعى)
@@ -1737,11 +1655,11 @@ export const replayAllLogsCorrectly = () => {
 
       // حساب نقاط المتجر من سجلات الطلبات فقط
       const playerPrizes = allPrizeRequests.filter(
-        r => (r.playerId === player.id || (r.playerName === player.name && r.roomId === player.roomId)) &&
+        r => r.playerId === player.id &&
              r.status !== 'rejected' &&
              r.status !== 'cancelled'
       );
-      const totalSpent = playerPrizes.reduce((sum, r) => sum + (Number(r.pointsUsed) || 0), 0);
+      const totalSpent = playerPrizes.reduce((sum, r) => sum + (r.pointsUsed || 0), 0);
       const rewardPoints = Math.max(0, rawTotal - totalSpent);
 
       return {
