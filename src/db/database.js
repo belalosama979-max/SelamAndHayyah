@@ -123,7 +123,15 @@ export const startFirebaseSync = () => {
     onSnapshot(doc(db, "data", key), (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
-        const localTime = Number(localStorage.getItem(key + '_time') || 0);
+        let localTime = Number(localStorage.getItem(key + '_time') || 0);
+        
+        // --- إصلاح اختفاء البيانات ---
+        // إذا كان التخزين المحلي فارغاً تماماً، نجبر النظام على أخذ بيانات Firebase
+        const localData = localStorage.getItem(key);
+        if (!localData || localData === '[]' || localData === '{}') {
+          localTime = 0; 
+        }
+
         if (data.value && data.lastUpdated > localTime) {
           localStorage.setItem(key, data.value);
           localStorage.setItem(key + '_time', data.lastUpdated.toString());
