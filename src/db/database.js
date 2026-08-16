@@ -107,11 +107,8 @@ export const saveGameSettings = (newSettings) => {
 const setLocalItem = (key, value, isInit = false) => {
   localStorage.setItem(key, value);
   const now = isInit ? 0 : Date.now();
-  if (!isInit || !localStorage.getItem(key + '_time')) {
-    localStorage.setItem(key + '_time', now.toString());
-  }
-  // إرسال فوري للسحابة في كل عملية حفظ
   if (!isInit) {
+    localStorage.setItem(key + '_time', now.toString());
     setDoc(doc(db, "data", key), { value, lastUpdated: now }).catch(console.error);
   }
 };
@@ -124,15 +121,43 @@ export const startFirebaseSync = () => {
     onSnapshot(doc(db, "data", key), (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
+        if (!data || !data.value) return;
+        
+        const localVal = localStorage.getItem(key);
         let localTime = Number(localStorage.getItem(key + '_time') || 0);
-        // حماية ضد أي أوقات مستقبلية تالفة قد تكون حفظت سابقاً
-        if (localTime > Date.now() + 60000) {
-          localTime = 0;
-          localStorage.setItem(key + '_time', '0');
+        
+        // التحقق مما إذا كانت البيانات المحلية فارغة
+        let isLocalEmpty = false;
+        try {
+          if (!localVal || localVal === '[]' || localVal === '{}' || localVal === 'null' || localVal === '') {
+            isLocalEmpty = true;
+          } else {
+            const parsed = JSON.parse(localVal);
+            if (Array.isArray(parsed) && parsed.length === 0) {
+              isLocalEmpty = true;
+            }
+          }
+        } catch (e) {
+          isLocalEmpty = true;
         }
-        if (data.value && data.lastUpdated > localTime) {
+
+        // التحقق مما إذا كانت بيانات السحابة تحتوي على عناصر
+        let hasCloudData = false;
+        try {
+          const cloudParsed = JSON.parse(data.value);
+          if (Array.isArray(cloudParsed) && cloudParsed.length > 0) {
+            hasCloudData = true;
+          } else if (typeof cloudParsed === 'object' && cloudParsed !== null && Object.keys(cloudParsed).length > 0) {
+            hasCloudData = true;
+          }
+        } catch (e) {}
+
+        const isRemoteNewer = data.lastUpdated && data.lastUpdated > localTime;
+        
+        // التحديث إذا كانت البيانات المحلية فارغة والسحابة بها بيانات، أو إذا كان تحديث السحابة أحدث
+        if ((isLocalEmpty && hasCloudData) || isRemoteNewer || isLocalEmpty) {
           localStorage.setItem(key, data.value);
-          localStorage.setItem(key + '_time', data.lastUpdated.toString());
+          localStorage.setItem(key + '_time', (data.lastUpdated || Date.now()).toString());
           window.dispatchEvent(new Event('db_sync'));
         }
       }
