@@ -121,7 +121,10 @@ export const startFirebaseSync = () => {
     onSnapshot(doc(db, "data", key), (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
-        if (!data || !data.value) return;
+        if (!data) return;
+        
+        const cloudVal = typeof data.value === 'string' ? data.value : (data.value !== undefined ? JSON.stringify(data.value) : null);
+        if (!cloudVal) return;
         
         const localVal = localStorage.getItem(key);
         let localTime = Number(localStorage.getItem(key + '_time') || 0);
@@ -144,7 +147,7 @@ export const startFirebaseSync = () => {
         // التحقق مما إذا كانت بيانات السحابة تحتوي على عناصر
         let hasCloudData = false;
         try {
-          const cloudParsed = JSON.parse(data.value);
+          const cloudParsed = JSON.parse(cloudVal);
           if (Array.isArray(cloudParsed) && cloudParsed.length > 0) {
             hasCloudData = true;
           } else if (typeof cloudParsed === 'object' && cloudParsed !== null && Object.keys(cloudParsed).length > 0) {
@@ -154,9 +157,9 @@ export const startFirebaseSync = () => {
 
         const isRemoteNewer = data.lastUpdated && data.lastUpdated > localTime;
         
-        // التحديث إذا كانت البيانات المحلية فارغة والسحابة بها بيانات، أو إذا كان تحديث السحابة أحدث
-        if ((isLocalEmpty && hasCloudData) || isRemoteNewer || isLocalEmpty) {
-          localStorage.setItem(key, data.value);
+        // التحديث إذا كانت البيانات المحلية فارغة والسحابة بها بيانات، أو إذا كان تحديث السحابة أحدث، أو إذا كانت البيانات مختلفة
+        if ((isLocalEmpty && hasCloudData) || isRemoteNewer || isLocalEmpty || (localVal !== cloudVal && (data.lastUpdated || 0) > 0)) {
+          localStorage.setItem(key, cloudVal);
           localStorage.setItem(key + '_time', (data.lastUpdated || Date.now()).toString());
           window.dispatchEvent(new Event('db_sync'));
         }
@@ -166,6 +169,11 @@ export const startFirebaseSync = () => {
     });
   });
 };
+
+// بدء المزامنة فور استيراد الملف
+try {
+  startFirebaseSync();
+} catch (e) {}
 
 export const migrateDataToFirebase = async (silent = false) => {
   if (!silent) {
