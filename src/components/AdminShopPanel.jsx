@@ -267,7 +267,7 @@ export default function AdminShopPanel({ onDataChange }) {
                 .filter(req => requestFilter === 'all' || req.status === requestFilter)
                 .map(req => {
                 const roomName = rooms.find(r => r.id === req.roomId)?.name || 'غرفة محذوفة';
-                const prizeName = req.rewardSnapshot ? req.rewardSnapshot.name : 'جائزة غير معروفة';
+                const prizeName = req.rewardName || (req.rewardSnapshot ? req.rewardSnapshot.name : 'جائزة غير معروفة');
                 const dateStr = new Date(req.createdAt).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' });
                 const playerData = allPlayers.find(p => p.id === req.playerId);
                 const currentBalance = playerData ? playerData.rewardPoints : null;

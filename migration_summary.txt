@@ -1,0 +1,22 @@
+[أسامة] Earned: 0, Spent: 0, Final: 0
+[زيد] Earned: 0, Spent: 0, Final: 0
+[صالح العكش] Earned: 1942, Spent: 0, Final: 1942
+[عبدالرحمن التوتنجي] Earned: 2285, Spent: 5410, Final: 0
+[أحمد صبحا] Earned: 2062, Spent: 1200, Final: 862
+[ليث العبداللات] Earned: 6750, Spent: 0, Final: 6750
+[تيم عبده] Earned: 3504, Spent: 0, Final: 3504
+[عمر الرجوب] Earned: 6000, Spent: 3242, Final: 2758
+[أسامة طباخي] Earned: 821, Spent: 0, Final: 821
+[محمد المناصير] Earned: 3960, Spent: 0, Final: 3960
+[زيد صافي] Earned: 5853, Spent: 0, Final: 5853
+[أبي العنبوسي] Earned: 5236, Spent: 1200, Final: 4036
+[undefined] Earned: 0, Spent: 0, Final: 0
+[undefined] Earned: 0, Spent: 0, Final: 0
+[undefined] Earned: 0, Spent: 0, Final: 0
+[undefined] Earned: 0, Spent: 0, Final: 0
+[undefined] Earned: 0, Spent: 0, Final: 0
+[undefined] Earned: 0, Spent: 0, Final: 0
+[undefined] Earned: 0, Spent: 0, Final: 0
+[undefined] Earned: 0, Spent: 0, Final: 0
+[undefined] Earned: 0, Spent: 0, Final: 0
+[undefined] Earned: 0, Spent: 0, Final: 0

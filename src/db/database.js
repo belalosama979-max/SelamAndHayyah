@@ -534,149 +534,7 @@ export const initDatabase = () => {
     } catch(e) {
       console.error('Error applying board events migration v2:', e);
     }
-
-    // --- إصلاح تلقائي: التحقق من إعادة نقاط أي طلب مرفوض لمحمد المناصير ---
-    // يضمن أن الطلبات المرفوضة لا تُحسب في totalSpent للاعب، مع رفع النتيجة لـ Firebase
-    try {
-      const cameraFixKey = 'manaseer_camera_refund_v1';
-      if (!localStorage.getItem(cameraFixKey)) {
-        const requestsStr = localStorage.getItem(KEYS.PRIZE_REQUESTS);
-        const playersStr = localStorage.getItem(KEYS.PLAYERS);
-        if (requestsStr && playersStr) {
-          const requests = JSON.parse(requestsStr);
-          const players = JSON.parse(playersStr);
-
-          // البحث عن طلب مرفوض للمناصير (كاميرا أو غيرها)
-          const rejectedReqs = requests.filter(r =>
-            r.playerName?.includes('المناصير') &&
-            r.status === 'rejected'
-          );
-
-          if (rejectedReqs.length > 0) {
-            let anyChanged = false;
-            rejectedReqs.forEach(rejReq => {
-              const pIdx = players.findIndex(p => p.id === rejReq.playerId);
-              if (pIdx >= 0) {
-                // حساب المصروف الصحيح = فقط الطلبات غير المرفوضة
-                const nonRejected = requests.filter(r =>
-                  r.playerId === rejReq.playerId &&
-                  r.status !== 'rejected' &&
-                  r.status !== 'cancelled'
-                );
-                const correctTotalSpent = nonRejected.reduce((s, r) => s + (r.pointsUsed || 0), 0);
-                const correctRewardPoints = Math.max(0, (players[pIdx].totalCollectedPoints || 0) - correctTotalSpent);
-
-                if (
-                  players[pIdx].totalSpent !== correctTotalSpent ||
-                  players[pIdx].rewardPoints !== correctRewardPoints
-                ) {
-                  players[pIdx].totalSpent = correctTotalSpent;
-                  players[pIdx].rewardPoints = correctRewardPoints;
-                  anyChanged = true;
-                }
-              }
-            });
-
-            if (anyChanged) {
-              // timestamp مرتفع لضمان انتصار هذا الإصلاح على Firebase القديم
-              const fixTs = Date.now() + 9_999_999_998;
-              const fixedStr = JSON.stringify(players);
-              localStorage.setItem(KEYS.PLAYERS, fixedStr);
-              localStorage.setItem(KEYS.PLAYERS + '_time', fixTs.toString());
-              setDoc(doc(db, 'data', KEYS.PLAYERS), { value: fixedStr, lastUpdated: fixTs }).catch(console.error);
-            }
-          }
-          localStorage.setItem(cameraFixKey, '1');
-        }
-      }
-    } catch(e) {
-      console.error('Error applying Manaseer camera fix:', e);
-    }
-
-    // --- إصلاح تلقائي: إعادة حساب نقاط المتجر لجميع الطلاب (v2) ---
-    // يُصحح نقاط المتجر المضخّمة الناتجة عن استخدام pointsApplied بدلاً من قيمة البطاقة الخام
-    // مهم: يستخدم timestamp مرتفع جداً لضمان انتصاره على أي بيانات Firebase قديمة
-    try {
-      const storeFixKey = 'store_points_recalc_v2';
-      if (!localStorage.getItem(storeFixKey)) {
-        const allLogsStr = localStorage.getItem(KEYS.LOGS);
-        const allPlayersStr = localStorage.getItem(KEYS.PLAYERS);
-        const allRequestsStr = localStorage.getItem(KEYS.PRIZE_REQUESTS);
-        const cardsStr = localStorage.getItem(KEYS.CARDS);
-
-        if (allLogsStr && allPlayersStr) {
-          const allLogs = JSON.parse(allLogsStr);
-          const allPlayers = JSON.parse(allPlayersStr);
-          const allPrizeRequests = allRequestsStr ? JSON.parse(allRequestsStr) : [];
-          const allCards = cardsStr ? JSON.parse(cardsStr) : [];
-
-          // جدول البحث: اسم البطاقة → قيمتها
-          const cardValueByName = {};
-          allCards.forEach(c => {
-            if (c.value !== null && c.value !== undefined) cardValueByName[c.name] = c.value;
-          });
-
-          let anyChanged = false;
-          const fixedPlayers = allPlayers.map(player => {
-            const playerLogs = allLogs
-              .filter(l => l.playerId === player.id)
-              .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-
-            let totalCollectedPoints = 0;
-            playerLogs.forEach(log => {
-              let rawCardValue;
-              if (log.cardValue !== undefined && log.cardValue !== null) {
-                rawCardValue = log.cardValue;
-              } else if (cardValueByName[log.cardName] !== undefined) {
-                rawCardValue = cardValueByName[log.cardName];
-              } else {
-                rawCardValue = log.pointsApplied;
-              }
-              totalCollectedPoints = Math.max(0, totalCollectedPoints + rawCardValue);
-            });
-
-            // حساب المصروف الحقيقي من الطلبات غير المرفوضة
-            const playerPrizes = allPrizeRequests.filter(
-              r => r.playerId === player.id &&
-                   r.status !== 'rejected' &&
-                   r.status !== 'cancelled'
-            );
-            const totalSpent = playerPrizes.reduce((s, r) => s + (r.pointsUsed || 0), 0);
-            const newRewardPoints = Math.max(0, totalCollectedPoints - totalSpent);
-
-            // تحديث فقط إذا تغيرت القيم
-            if (
-              player.totalCollectedPoints !== totalCollectedPoints ||
-              player.totalSpent !== totalSpent ||
-              player.rewardPoints !== newRewardPoints
-            ) {
-              anyChanged = true;
-              return {
-                ...player,
-                totalCollectedPoints,
-                totalSpent,
-                rewardPoints: newRewardPoints
-              };
-            }
-            return player;
-          });
-
-          if (anyChanged) {
-            // استخدام timestamp مرتفع جداً لضمان انتصار هذا الإصلاح على Firebase القديم
-            const fixTs = Date.now() + 9_999_999_999;
-            const fixedStr = JSON.stringify(fixedPlayers);
-            localStorage.setItem(KEYS.PLAYERS, fixedStr);
-            localStorage.setItem(KEYS.PLAYERS + '_time', fixTs.toString());
-            // رفع الإصلاح لـ Firebase مباشرة لضمان التزامن
-            setDoc(doc(db, 'data', KEYS.PLAYERS), { value: fixedStr, lastUpdated: fixTs }).catch(console.error);
-          }
-          localStorage.setItem(storeFixKey, '1');
-        }
-      }
-    } catch(e) {
-      console.error('Error applying store points recalc v2:', e);
-    }
-
+    // --- One-time fixes have been removed because a complete database migration and rebuild was performed. ---
   } finally {
     isInitializing = false;
   }
@@ -1090,7 +948,9 @@ export const orderPrize = (playerId, rewardId, customPointsCost = null) => {
     playerName: player.name,
     roomId: player.roomId,
     rewardId: reward.id,
+    rewardName: reward.name,
     pointsUsed: effectiveCost,
+    rewardPriceAtPurchase: effectiveCost,
     originalPointsCost: customPointsCost !== null ? customPointsCost : reward.pointsCost,
     wasFlashSale: customPointsCost === null && effectiveCost < reward.pointsCost,
     rewardSnapshot: { ...reward, effectivePointsCost: effectiveCost },
@@ -1114,18 +974,9 @@ export const updatePrizeRequestStatus = (requestId, newStatus) => {
 
   const request = requests[index];
   
-  // إذا تم الرفض، نعيد النقاط والمخزون
+  // إذا تم الرفض، نعيد المخزون فقط، أما النقاط فستعاد عبر recalculateAllFromLogs
   if (newStatus === 'rejected' && request.status !== 'rejected') {
-    const players = getAllPlayers();
     const rewards = getRewards();
-    
-    const playerIndex = players.findIndex(p => p.id === request.playerId);
-    if (playerIndex >= 0) {
-      players[playerIndex].rewardPoints += request.pointsUsed;
-      players[playerIndex].totalSpent = Math.max(0, (players[playerIndex].totalSpent || 0) - request.pointsUsed);
-      setLocalItem(KEYS.PLAYERS, JSON.stringify(players));
-    }
-    
     const rewardIndex = rewards.findIndex(r => r.id === request.rewardId);
     if (rewardIndex >= 0) {
       rewards[rewardIndex].remainingStock += 1;
@@ -1140,22 +991,17 @@ export const updatePrizeRequestStatus = (requestId, newStatus) => {
   }
   
   setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify(requests));
+  recalculateAllFromLogs(); // إعادة حساب النقاط من الصفر لضمان الدقة
   window.dispatchEvent(new Event('db_sync'));
   return { success: true };
 };
 
 export const deletePrizeRequest = (requestId) => {
   let requests = getAllPrizeRequests();
-  const req = requests.find(r => r.id === requestId);
-  if (req) {
-    if (req.status !== 'rejected') {
-      updatePrizeRequestStatus(requestId, 'rejected');
-      requests = getAllPrizeRequests();
-    }
-    const updated = requests.filter(r => r.id !== requestId);
-    setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify(updated));
-    window.dispatchEvent(new Event('db_sync'));
-  }
+  const updated = requests.filter(r => r.id !== requestId);
+  setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify(updated));
+  recalculateAllFromLogs(); // إعادة حساب النقاط لاسترجاع ما تم خصمه
+  window.dispatchEvent(new Event('db_sync'));
   return getAllPrizeRequests();
 };
 
