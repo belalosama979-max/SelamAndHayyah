@@ -144,6 +144,32 @@ export const startFirebaseSync = () => {
   });
 };
 
+export const forceRestoreFromCloud = async () => {
+  try {
+    let anyRestored = false;
+    for (const key of Object.values(KEYS)) {
+      const docSnap = await import('firebase/firestore').then(({ getDoc }) => getDoc(doc(db, "data", key)));
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data && data.value) {
+          localStorage.setItem(key, data.value);
+          localStorage.setItem(key + '_time', (data.lastUpdated || Date.now()).toString());
+          anyRestored = true;
+        }
+      }
+    }
+    if (anyRestored) {
+      alert("✅ تم استعادة البيانات من السحابة بنجاح! سيتم تحديث الصفحة الآن.");
+      window.location.reload();
+    } else {
+      alert("❌ لم يتم العثور على بيانات في السحابة لاستعادتها.");
+    }
+  } catch (error) {
+    console.error("Force restore failed:", error);
+    alert("❌ فشل استعادة البيانات: " + error.message);
+  }
+};
+
 export const migrateDataToFirebase = async (silent = false) => {
   if (!silent) {
     alert("⏳ جاري سحب البيانات من جهازك ورفعها إلى السحابة... الرجاء الانتظار");

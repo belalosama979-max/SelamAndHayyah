@@ -5,7 +5,7 @@ import {
   getRooms, saveRoom, archiveRoom, deleteRoom,
   getPlayers, savePlayer,
   getCards, getBoardEvents, getLogs, applyCardToPlayer, undoLastLog, initDatabase,
-  recordPlayerVisit, getGameSettings, startFirebaseSync, migrateDataToFirebase
+  recordPlayerVisit, getGameSettings, startFirebaseSync, migrateDataToFirebase, forceRestoreFromCloud
 } from './db/database';
 import RoomSummary from './components/RoomSummary';
 import Board from './components/Board';
