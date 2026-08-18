@@ -5,13 +5,13 @@ import { getFirestore, doc, setDoc, onSnapshot } from "firebase/firestore";
 import { getEffectivePointsCost } from '../utils/flashSale';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBjTcigTLFNcNxALsGU_Apv3Z7zvcA86Ys",
-  authDomain: "selamandhayyah.firebaseapp.com",
-  projectId: "selamandhayyah",
-  storageBucket: "selamandhayyah.firebasestorage.app",
-  messagingSenderId: "414616915163",
-  appId: "1:414616915163:web:82ea1bb96745cf5d4390fe",
-  measurementId: "G-L2LBC2TZC5"
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID",
+  measurementId: "YOUR_MEASUREMENT_ID"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -342,199 +342,6 @@ export const initDatabase = () => {
       setLocalItem(KEYS.QUIZZES, JSON.stringify([]), true);
     }
 
-    // --- One-time fix for Abdulrahman Totanji ---
-    try {
-      const logsStr = localStorage.getItem(KEYS.LOGS);
-      const playersStr = localStorage.getItem(KEYS.PLAYERS);
-      if (logsStr && playersStr) {
-        let logs = JSON.parse(logsStr);
-        let players = JSON.parse(playersStr);
-        
-        let changed = false;
-        let targetPlayerId = null;
-
-        // Find the specific log and modify it
-        logs = logs.map(log => {
-          if (log.pointsApplied === 1141 && log.cardName.includes('تفاعل')) {
-            log.pointsApplied = 48;
-            targetPlayerId = log.playerId;
-            changed = true;
-          }
-          return log;
-        });
-
-        if (changed && targetPlayerId) {
-          // Save fixed logs
-          setLocalItem(KEYS.LOGS, JSON.stringify(logs), true);
-
-          // Replay all logs for this player to rebuild their state
-          const player = players.find(p => p.id === targetPlayerId);
-          if (player) {
-            const playerLogs = logs
-              .filter(l => l.playerId === player.id)
-              .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-
-            let points = 0;
-            let totalCollectedPoints = 0;
-            let position = 1;
-            let lastCardApplied = null;
-            let hasFinished = false;
-
-            const eventsStr = localStorage.getItem(KEYS.EVENTS);
-            const events = eventsStr ? JSON.parse(eventsStr) : [];
-            const { targetPoints: ftp, boardSize: fbs } = getGameSettings();
-            const fpps = ftp / fbs;
-
-            playerLogs.forEach(log => {
-              points = Math.max(0, Math.min(ftp, points + log.pointsApplied));
-              totalCollectedPoints = Math.max(0, totalCollectedPoints + log.pointsApplied);
-              
-              let tempPos = 1 + Math.floor(points / fpps);
-              if (tempPos > fbs) {
-                tempPos = fbs;
-                hasFinished = true;
-              }
-              position = tempPos;
-
-              const ev = events.find(e => e.startPosition === position);
-              if (ev) {
-                position = ev.endPosition;
-                if (ev.endPosition === fbs) {
-                  points = ftp;
-                  hasFinished = true;
-                } else {
-                  points = (ev.endPosition - 1) * fpps;
-                }
-              }
-              lastCardApplied = log.cardName;
-            });
-
-            player.points = points;
-            player.totalCollectedPoints = totalCollectedPoints;
-            player.rewardPoints = totalCollectedPoints - (player.totalSpent || 0);
-            player.position = position;
-            player.lastCardApplied = lastCardApplied;
-            player.hasFinished = hasFinished;
-            
-            setLocalItem(KEYS.PLAYERS, JSON.stringify(players), true);
-          }
-        }
-      }
-    } catch(e) {
-      console.error("Error applying log fix:", e);
-    }
-
-    // --- One-time fix: Reject and refund prize request for Abdulrahman Totanji (Abu Saleh 1200 points) ---
-    try {
-      const requestsStr = localStorage.getItem(KEYS.PRIZE_REQUESTS);
-      if (requestsStr) {
-        const requests = JSON.parse(requestsStr);
-        const targetReq = requests.find(r => 
-          (r.playerName?.includes('التوتنجي') || r.playerName?.includes('عبدالرحمن')) && 
-          (r.rewardSnapshot?.name?.includes('أبو صالح') || r.pointsUsed === 1200) &&
-          r.status !== 'rejected'
-        );
-        if (targetReq) {
-          targetReq.status = 'rejected';
-          targetReq.updatedAt = new Date().toISOString();
-          setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify(requests), true);
-
-          const playersStr = localStorage.getItem(KEYS.PLAYERS);
-          if (playersStr) {
-            const players = JSON.parse(playersStr);
-            const pIndex = players.findIndex(p => p.id === targetReq.playerId);
-            if (pIndex >= 0) {
-              players[pIndex].rewardPoints += (targetReq.pointsUsed || 0);
-              players[pIndex].totalSpent = Math.max(0, (players[pIndex].totalSpent || 0) - (targetReq.pointsUsed || 0));
-              setLocalItem(KEYS.PLAYERS, JSON.stringify(players), true);
-            }
-          }
-        }
-      }
-    } catch(e) {
-      console.error("Error rejecting prize request:", e);
-    }
-
-    // --- One-time fix: Omar Al-Rajoub bought لعبة تركيب شخصيات for free ---
-    try {
-      const requestsStr = localStorage.getItem(KEYS.PRIZE_REQUESTS);
-      if (requestsStr) {
-        const requests = JSON.parse(requestsStr);
-        const targetReqs = requests.filter(r => 
-          r.playerName?.includes('عمر') && r.playerName?.includes('الرجوب') && 
-          r.rewardSnapshot?.name?.includes('لعبة تركيب شخصيات') &&
-          (!r.pointsUsed || r.pointsUsed == 0) &&
-          !r.fixedForOmar
-        );
-
-        if (targetReqs.length > 0) {
-          let playersChanged = false;
-          let players = null;
-          
-          const playersStr = localStorage.getItem(KEYS.PLAYERS);
-          if (playersStr) players = JSON.parse(playersStr);
-
-          targetReqs.forEach(targetReq => {
-            targetReq.pointsUsed = 400; 
-            targetReq.fixedForOmar = true;
-            
-            if (players) {
-              const pIndex = players.findIndex(p => p.id === targetReq.playerId);
-              if (pIndex >= 0) {
-                players[pIndex].rewardPoints = (players[pIndex].rewardPoints || 0) - 400;
-                players[pIndex].totalSpent = (players[pIndex].totalSpent || 0) + 400;
-                playersChanged = true;
-              }
-            }
-          });
-
-          // Force local storage and sync to Firebase immediately
-          const now = Date.now();
-          localStorage.setItem(KEYS.PRIZE_REQUESTS, JSON.stringify(requests));
-          localStorage.setItem(KEYS.PRIZE_REQUESTS + '_time', now.toString());
-          setDoc(doc(db, "data", KEYS.PRIZE_REQUESTS), { value: JSON.stringify(requests), lastUpdated: now }).catch(console.error);
-
-          if (playersChanged && players) {
-            localStorage.setItem(KEYS.PLAYERS, JSON.stringify(players));
-            localStorage.setItem(KEYS.PLAYERS + '_time', now.toString());
-            setDoc(doc(db, "data", KEYS.PLAYERS), { value: JSON.stringify(players), lastUpdated: now }).catch(console.error);
-          }
-        }
-      }
-    } catch(e) {
-      console.error("Error fixing Omar Al-Rajoub:", e);
-    }
-
-    // --- Migration: إعادة توزيع السلالم والأفاعي (v2) ---
-    // يعمل مرة واحدة فقط عند وجود التوزيع القديم غير المتوازن
-    try {
-      const migrationKey = 'board_events_rebalanced_v2';
-      if (!localStorage.getItem(migrationKey)) {
-        // التوزيع الجديد المتوازن للسلالم والأفاعي
-        const newEvents = [
-          { id: "event-ladder-1", type: "ladder", startPosition: 6,  endPosition: 17, description: "المحافظة على صلاة الفجر في جماعة" },
-          { id: "event-ladder-2", type: "ladder", startPosition: 18, endPosition: 30, description: "حفظ ورد الحفظ الأسبوعي كاملاً" },
-          { id: "event-ladder-3", type: "ladder", startPosition: 38, endPosition: 51, description: "بر الوالدين ومساعدتهم في المنزل" },
-          { id: "event-ladder-4", type: "ladder", startPosition: 59, endPosition: 73, description: "التصدق والمشاركة في عمل تطوعي" },
-          { id: "event-ladder-5", type: "ladder", startPosition: 77, endPosition: 91, description: "التفوق الدراسي ونشر الخير بين الزملاء" },
-          { id: "event-snake-1", type: "snake", startPosition: 26, endPosition: 15, description: "التفوه بكلمات سيئة أو الغيبة" },
-          { id: "event-snake-2", type: "snake", startPosition: 45, endPosition: 33, description: "إهمال الواجبات المدرسية والتكاسل" },
-          { id: "event-snake-3", type: "snake", startPosition: 54, endPosition: 42, description: "عقوق الوالدين أو إساءة الأدب" },
-          { id: "event-snake-4", type: "snake", startPosition: 68, endPosition: 57, description: "التخلف عن صلاة الجماعة لعدة أيام" },
-          { id: "event-snake-5", type: "snake", startPosition: 88, endPosition: 74, description: "الكبر والغرور واحتقار الآخرين" },
-        ];
-        // استخدام isInit=false وtimestamp عالٍ لضمان فوز الأحداث الجديدة على Firebase
-        const highTs = Date.now() + 9_999_999_999;
-        localStorage.setItem(KEYS.EVENTS, JSON.stringify(newEvents));
-        localStorage.setItem(KEYS.EVENTS + '_time', highTs.toString());
-        // رفع الأحداث الجديدة إلى Firebase
-        setDoc(doc(db, 'data', KEYS.EVENTS), { value: JSON.stringify(newEvents), lastUpdated: highTs }).catch(console.error);
-        localStorage.setItem(migrationKey, '1');
-      }
-    } catch(e) {
-      console.error('Error applying board events migration v2:', e);
-    }
-    // --- One-time fixes have been removed because a complete database migration and rebuild was performed. ---
   } finally {
     isInitializing = false;
   }
@@ -860,17 +667,8 @@ export const saveReward = (reward) => {
 };
 
 export const deleteReward = (rewardId) => {
-  // عند حذف جائزة: أولاً ارفض الطلبات المعلقة (يُعيد النقاط للطلاب) ثم احذف جميع طلباتها
-  const allRequests = getAllPrizeRequests();
-  const relatedRequests = allRequests.filter(r => r.rewardId === rewardId);
-  relatedRequests.forEach(req => {
-    if (req.status !== 'rejected' && req.status !== 'cancelled') {
-      updatePrizeRequestStatus(req.id, 'rejected');
-    }
-  });
-  const cleanedRequests = getAllPrizeRequests().filter(r => r.rewardId !== rewardId);
-  setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify(cleanedRequests));
-
+  // تم تعديل هذا المنطق: حذف الجائزة لم يعد يؤثر على الطلبات التاريخية للطلاب
+  // الطلبات المعلقة ستظل معلقة حتى يتخذ المشرف قراراً بشأنها، والطلبات المسلّمة تبقى في السجل
   let rewards = getRewards();
   rewards = rewards.filter(r => r.id !== rewardId);
   setLocalItem(KEYS.REWARDS, JSON.stringify(rewards));
@@ -955,6 +753,13 @@ export const orderPrize = (playerId, rewardId, customPointsCost = null) => {
     wasFlashSale: customPointsCost === null && effectiveCost < reward.pointsCost,
     rewardSnapshot: { ...reward, effectivePointsCost: effectiveCost },
     status: 'pending',
+    statusHistory: [{
+      from: null,
+      to: 'pending',
+      timestamp: new Date().toISOString(),
+      source: 'student',
+      reason: 'Created new request'
+    }],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -967,15 +772,16 @@ export const orderPrize = (playerId, rewardId, customPointsCost = null) => {
   return { success: true, message: "تم تسجيل الطلب بنجاح" };
 };
 
-export const updatePrizeRequestStatus = (requestId, newStatus) => {
+export const updatePrizeRequestStatus = (requestId, newStatus, source = 'admin', reason = 'Admin action') => {
   const requests = getAllPrizeRequests();
   const index = requests.findIndex(r => r.id === requestId);
   if (index === -1) return { success: false, message: "الطلب غير موجود" };
 
   const request = requests[index];
+  const oldStatus = request.status;
   
   // إذا تم الرفض، نعيد المخزون فقط، أما النقاط فستعاد عبر recalculateAllFromLogs
-  if (newStatus === 'rejected' && request.status !== 'rejected') {
+  if (newStatus === 'rejected' && oldStatus !== 'rejected') {
     const rewards = getRewards();
     const rewardIndex = rewards.findIndex(r => r.id === request.rewardId);
     if (rewardIndex >= 0) {
@@ -989,6 +795,15 @@ export const updatePrizeRequestStatus = (requestId, newStatus) => {
   if (newStatus === 'delivered') {
     request.deliveredAt = new Date().toISOString();
   }
+  
+  if (!request.statusHistory) request.statusHistory = [];
+  request.statusHistory.push({
+    from: oldStatus,
+    to: newStatus,
+    timestamp: new Date().toISOString(),
+    source,
+    reason
+  });
   
   setLocalItem(KEYS.PRIZE_REQUESTS, JSON.stringify(requests));
   recalculateAllFromLogs(); // إعادة حساب النقاط من الصفر لضمان الدقة

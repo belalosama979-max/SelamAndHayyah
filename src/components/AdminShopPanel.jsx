@@ -97,12 +97,27 @@ export default function AdminShopPanel({ onDataChange }) {
     }
   };
 
-  const getStatusLabel = (status) => {
+  const getStatusLabel = (req) => {
+    const status = req.status;
+    let historyText = '';
+    if (req.statusHistory && req.statusHistory.length > 0) {
+      historyText = 'سجل التغييرات:\n' + req.statusHistory.map(h => 
+        `• ${h.to} بواسطة ${h.source === 'admin' ? 'المشرف' : 'النظام'}`
+      ).join('\n');
+    }
+
+    const spanStyle = (color) => ({ 
+      color, 
+      fontWeight: 800, 
+      cursor: historyText ? 'help' : 'default',
+      borderBottom: historyText ? '1px dashed' : 'none'
+    });
+
     switch (status) {
-      case 'pending': return <span style={{ color: '#f59e0b', fontWeight: 800 }}>⏳ قيد الانتظار</span>;
-      case 'approved': return <span style={{ color: '#3b82f6', fontWeight: 800 }}>✅ مقبول (جاهز للتسليم)</span>;
-      case 'delivered': return <span style={{ color: '#10b981', fontWeight: 800 }}>📦 تم التسليم</span>;
-      case 'rejected': return <span style={{ color: '#ef4444', fontWeight: 800 }}>❌ مرفوض (تم إرجاع النقاط)</span>;
+      case 'pending': return <span title={historyText} style={spanStyle('#f59e0b')}>⏳ قيد الانتظار</span>;
+      case 'approved': return <span title={historyText} style={spanStyle('#3b82f6')}>✅ مقبول (جاهز للتسليم)</span>;
+      case 'delivered': return <span title={historyText} style={spanStyle('#10b981')}>📦 تم التسليم</span>;
+      case 'rejected': return <span title={historyText} style={spanStyle('#ef4444')}>❌ مرفوض (تم إرجاع النقاط)</span>;
       default: return status;
     }
   };
@@ -296,7 +311,7 @@ export default function AdminShopPanel({ onDataChange }) {
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>غير موجود</span>
                       )}
                     </td>
-                    <td style={{ padding: '1rem' }}>{getStatusLabel(req.status)}</td>
+                    <td style={{ padding: '1rem' }}>{getStatusLabel(req)}</td>
                     <td style={{ padding: '1rem' }}>
                       {req.status === 'pending' && (
                         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>

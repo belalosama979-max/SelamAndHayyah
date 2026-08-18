@@ -32,7 +32,8 @@ async function restore() {
       const data = backupData[key];
       await setDoc(doc(db, "data", key), {
         value: JSON.stringify(data.value || []),
-        lastUpdated: Date.now()
+        // Force override the 9999999999999 timestamp from the old migration!
+        lastUpdated: 9999999999999 + Date.now() 
       });
       console.log(`Successfully uploaded ${key}`);
     } catch (e) {
